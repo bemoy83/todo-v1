@@ -9,6 +9,56 @@ const { HOLD_MS, JITTER_PX, GATE, FORCE, FOLLOW_MIN, FOLLOW_MAX, SPEED_GAIN, GAP
 // Track which pointer controls the current drag (cards or subtasks)
 let activePointerId = null;
 
+// Blocks new fingers from interfering while a drag is active
+function onAnyPointerDownDuringDrag(e) {
+  // Only do anything if a drag is currently active
+  if (!gesture || !gesture.drag) return;
+
+  // Allow the controlling finger through
+  if (e.pointerId === activePointerId) return;
+
+  // Stop extra fingers from spawning system gestures or stealing capture
+  if (e.cancelable) e.preventDefault();
+  e.stopPropagation();
+}
+
+function releaseCaptureSafe(el, pid) {
+  try { el && el.releasePointerCapture && el.hasPointerCapture && el.hasPointerCapture(pid) && el.releasePointerCapture(pid); } catch {}
+}
+
+// Call this when we need to bail out no matter what (prevents stuck state)
+function hardCancelDrag(reason = 'unknown') {
+  try { window.removeEventListener('pointerdown', onAnyPointerDownDuringDrag, { capture: true }); } catch {}
+  activePointerId = null;
+  // subtask
+  try { window.removeEventListener('pointermove', onPointerMove); } catch {}
+  try { window.removeEventListener('pointerup', onPointerUp); } catch {}
+  try { window.removeEventListener('pointercancel', onPointerUp); } catch {}
+  // card
+  try { window.removeEventListener('pointermove', onCardPointerMove); } catch {}
+  try { window.removeEventListener('pointerup', onCardPointerUp); } catch {}
+  try { window.removeEventListener('pointercancel', onCardPointerUp); } catch {}
+
+  // clear timers if any
+  try { clearTimeout(timer); } catch {}
+  try { clearTimeout(ctimer); } catch {}
+
+  // remove classes
+  try { document.body.classList.remove('lock-scroll'); } catch {}
+  try { drag && drag.classList.remove('armed'); } catch {}
+  try { cdrag && cdrag.classList.remove('armed'); } catch {}
+
+  // clear layers
+  try { dragLayer && (dragLayer.innerHTML = ''); } catch {}
+
+  // reset state you use in cleanup* functions
+  gesture.drag = false;
+
+  // If you already have cleanup functions, you can call them too:
+  try { typeof cleanupDrag === 'function' && cleanupDrag(); } catch {}
+  try { typeof cleanupCardDrag === 'function' && cleanupCardDrag(); } catch {}
+}
+
 export function bindCrossSortContainer() {
   const app = document.getElementById('app');
   const dragLayer = document.getElementById('dragLayer');
@@ -57,6 +107,15 @@ export function bindCrossSortContainer() {
     // Lock onto this pointer early; capture helps iOS keep events flowing to us
     activePointerId = e.pointerId;
     try { handle.setPointerCapture?.(e.pointerId); } catch {}
+    
+    // If we ever lose capture for the active pointer, end the drag gracefully
+    handle.addEventListener('lostpointercapture', function onLostCapture(ev) {
+      if (ev.pointerId !== activePointerId) return;
+      // simulate an up for the active pointer
+      try { onPointerUp({ pointerId: activePointerId }); } catch { hardCancelDrag('lostcapture-sub'); }
+      handle.removeEventListener('lostpointercapture', onLostCapture);
+    }, { once: true });
+
   
     drag = row; start = pt(e);
     hold = false; started = false; armedAt = null; sourceMainId = row.closest('.task-card').dataset.id;
@@ -73,6 +132,8 @@ export function bindCrossSortContainer() {
     window.addEventListener('pointerup', onPointerUp, { once: true });
     // NEW: handle iOS/system interruptions (incoming call, CC pull-down, etc.)
     window.addEventListener('pointercancel', onPointerUp, { once: true });
+    // NEW: block extra fingers during active drag
+    window.addEventListener('pointerdown', onAnyPointerDownDuringDrag, { passive: false, capture: true });
   }
 
   function onPointerMove(e) {
@@ -333,6 +394,7 @@ export function bindCrossSortContainer() {
   }
 
   function cleanupNoDrag() {
+    try { window.removeEventListener('pointerdown', onAnyPointerDownDuringDrag, { capture: true }); } catch {}
     activePointerId = null;                 // <— add this
     try { if (drag) drag.classList.remove('armed'); } catch {}
     gesture.drag = false;
@@ -341,6 +403,7 @@ export function bindCrossSortContainer() {
   }
 
   function cleanupDrag() {
+    try { window.removeEventListener('pointerdown', onAnyPointerDownDuringDrag, { capture: true }); } catch {}
     activePointerId = null;                 // <— add this
     if (dragLayer) dragLayer.innerHTML = '';
     gesture.drag = false;
@@ -362,7 +425,13 @@ export function bindCrossSortContainer() {
   
     activePointerId = e.pointerId;
     try { handle.setPointerCapture?.(e.pointerId); } catch {}
-  
+    
+    handle.addEventListener('lostpointercapture', function onLostCapture(ev) {
+      if (ev.pointerId !== activePointerId) return;
+      try { onCardPointerUp({ pointerId: activePointerId }); } catch { hardCancelDrag('lostcapture-card'); }
+      handle.removeEventListener('lostpointercapture', onLostCapture);
+    }, { once: true });
+
     cdrag = card; cstart = pt(e);
     chold = false; cstarted = false; carmedAt = null;
   
@@ -377,6 +446,8 @@ export function bindCrossSortContainer() {
     window.addEventListener('pointermove', onCardPointerMove, { passive: false });
     window.addEventListener('pointerup', onCardPointerUp, { once: true });
     window.addEventListener('pointercancel', onCardPointerUp, { once: true });
+    // NEW: block extra fingers during active drag
+    window.addEventListener('pointerdown', onAnyPointerDownDuringDrag, { passive: false, capture: true });
   }
 
   function onCardPointerMove(e) {
@@ -555,6 +626,7 @@ export function bindCrossSortContainer() {
   }
 
   function cleanupCardNoDrag() {
+    try { window.removeEventListener('pointerdown', onAnyPointerDownDuringDrag, { capture: true }); } catch {}
   activePointerId = null;                 // <— add this
   try { if (cdrag) cdrag.classList.remove('armed'); } catch {}
   gesture.drag = false;
@@ -563,6 +635,7 @@ export function bindCrossSortContainer() {
   }
 
   function cleanupCardDrag() {
+    try { window.removeEventListener('pointerdown', onAnyPointerDownDuringDrag, { capture: true }); } catch {}
   activePointerId = null;                 // <— add this
   if (dragLayer) dragLayer.innerHTML = '';
   gesture.drag = false;
