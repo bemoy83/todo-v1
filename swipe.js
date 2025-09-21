@@ -140,17 +140,22 @@ const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)'
   }
 
   function cleanup() {
-    gesture.swipe = false;  // ← Make sure this is always reset
+    gesture.swipe = false;
     tracking = false;
     captured = false;
     clearHoldTimer();
     isHolding = false;
     unlockScroll?.();
     
+    // CRITICAL: Always notify coordinator if gesture was started
+    if (gestureCoordinator.activeGestures.swipe) {
+      gestureCoordinator.onSwipeEnd(type, false);
+    }
+    
     // Clear velocity tracker
     velocityTracker = [];
     
-    // Remove any remaining event listeners
+    // Remove event listeners
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
   }
@@ -213,33 +218,28 @@ function reset() {
 
   // Event handlers - much cleaner now
   function onDown(e) {
-  if (gesture.drag || gesture.swipe || 
-      e.target.closest('.sub-handle') || 
-      e.target.closest('.card-handle') ||
-      e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
-  
-  // Check with coordinator before starting
-  if (!gestureCoordinator.canStartGesture('swipe', type)) {
-    console.log(`🚫 ${type} swipe blocked by coordinator`);
-    return;
-  }
-  
-  // ADD: Actually start the gesture here
-  if (!gestureCoordinator.onSwipeStart(type)) {
-    console.log(`🚫 Failed to start ${type} swipe with coordinator`);
-    return;
-  }
-  
-  const p = pt(e);
-  startX = p.x;
-  startY = p.y;
-  currentX = p.x;
-  
-  tracking = true;
-  captured = false;
-  isHolding = false;
-  gesture.swipe = true;
+    if (gesture.drag || gesture.swipe || 
+        e.target.closest('.sub-handle') || 
+        e.target.closest('.card-handle') ||
+        e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
     
+    // Check with coordinator before starting
+    if (!gestureCoordinator.canStartGesture('swipe', type)) {
+      console.log(`🚫 ${type} swipe blocked by coordinator`);
+      return;
+    }
+    
+    const p = pt(e);
+    startX = p.x;
+    startY = p.y;
+    currentX = p.x;
+    
+    tracking = true;
+    captured = false;
+    isHolding = false;
+    // DON'T set gesture.swipe = true here yet
+    // DON'T call gestureCoordinator.onSwipeStart() here yet
+      
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
     wrap.classList.add('swiping');
     
@@ -263,25 +263,24 @@ function reset() {
       const scrolled = Math.abs(((document.scrollingElement || document.documentElement).scrollTop || 0) - scrollYAtStart) > 2;
       
       if (Math.abs(dy) > SWIPE.VERTICAL_GUARD || scrolled) {
-        cleanup();
+        cleanup(); // This will properly clean up without starting gesture
         return;
       }
       
       if (Math.abs(dx) >= SWIPE.MIN_INTENT_DISTANCE) {
+        // NOW we actually start the gesture
+        if (!gestureCoordinator.onSwipeStart(type)) {
+          console.log(`🚫 Failed to start ${type} swipe with coordinator`);
+          cleanup();
+          return;
+        }
+        
         captured = true;
+        gesture.swipe = true; // Set this AFTER coordinator confirms
         lockScroll();
         e.preventDefault();
         
-        // OLD CODE (causing the bug):
-        // if (gestureCoordinator.onSwipeStart(type)) {
-        //   gestureCoordinator.onSwipeActivate(type);
-        // }
-        
-        // NEW CODE (fixed):
-        // Don't call onSwipeStart here - gesture was already started in onDown
-        // Just trigger activation haptic
         gestureCoordinator.onSwipeActivate(type);
-        
         startHoldTimer();
       } else {
         return;
@@ -295,7 +294,7 @@ function reset() {
     setTransform(newX);
     updateVisuals(newX);
     
-    // NEW: Trigger threshold haptic when crossing action boundaries
+    // Threshold haptic logic remains the same
     const distance = Math.abs(newX);
     const threshold = newX > 0 ? getLeftRevealDistance() * 0.8 : getRightRevealDistance() * 0.8;
     
@@ -306,14 +305,15 @@ function reset() {
       wrap._thresholdCrossed = false;
     }
   }
-
+  
   function onUp() {
     window.removeEventListener('pointermove', onMove);
     tracking = false;
     clearHoldTimer();
     
     if (!captured) {
-      cleanup();
+      // Gesture never really started, just clean up locally
+      cleanup(); // This won't call coordinator since gesture.swipe is false
       return;
     }
     
@@ -328,8 +328,8 @@ function reset() {
         executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
       }
       
-      // NEW: End gesture with coordinator
       gestureCoordinator.onSwipeEnd(type, success);
+      cleanup(); // Clean up after notifying coordinator
       return;
     }
     
@@ -339,7 +339,13 @@ function reset() {
       openX = targetX;
       updateVisuals(targetX);
       wrap.style.removeProperty('--hold-feedback');
-      cleanup();
+      
+      // Don't end the gesture, just clean up tracking
+      gesture.swipe = false;
+      captured = false;
+      unlockScroll?.();
+      
+      // Keep coordinator gesture active for drawer state
       return;
     }
     
@@ -362,9 +368,8 @@ function reset() {
       updateVisuals(0);
     }
     
-    // NEW: End gesture with coordinator
     gestureCoordinator.onSwipeEnd(type, success);
-    cleanup();
+    cleanup(); // Clean up after notifying coordinator
   }
 
   function executeAction(actionName, zone) {
