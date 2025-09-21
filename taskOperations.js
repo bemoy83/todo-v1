@@ -220,3 +220,66 @@ export async function focusSubtaskInput(taskId) {
     subtaskInput?.focus();
   }, 100);
 }
+
+// Add this to your TaskOperations.js to include haptic feedback:
+export class TaskOperationsWithHaptics extends BaseOperation {
+  constructor() {
+    super('TaskOperationWithHaptics');
+  }
+
+  async create(title) {
+    const result = await this.execute(() => {
+      const task = { id: uid('m'), title: title.trim(), subtasks: [] };
+      model.unshift(task);
+      return task;
+    });
+    
+    // Add haptic feedback for successful creation
+    if (result) {
+      haptic('light');
+    }
+    
+    return result;
+  }
+
+  async delete(taskId) {
+    const result = await this.execute(() => {
+      const task = this.findTask(taskId);
+      if (!confirm(`Delete "${task.title}" and all its subtasks?`)) {
+        return false;
+      }
+      const index = model.indexOf(task);
+      model.splice(index, 1);
+      return true;
+    });
+    
+    // Add haptic feedback for deletion
+    if (result) {
+      haptic('warning');
+    }
+    
+    return result;
+  }
+
+  async toggleCompletion(taskId) {
+    const result = await this.execute(() => {
+      const task = this.findTask(taskId);
+      
+      if (task.subtasks.length > 0) {
+        const allCompleted = task.subtasks.every(st => st.done);
+        task.subtasks.forEach(st => st.done = !allCompleted);
+      } else {
+        task.completed = !task.completed;
+      }
+      
+      return true;
+    });
+    
+    // Add haptic feedback for completion
+    if (result) {
+      haptic('success');
+    }
+    
+    return result;
+  }
+}

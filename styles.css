@@ -805,3 +805,85 @@ button {
     --neuro-shadow-light: #4a5568;
   }
 } */
+/* iOS-specific overrides and improvements */
+
+/* Use the dynamic viewport height */
+@supports (-webkit-touch-callout: none) {
+  .app {
+  min-height: calc(var(--vh, 1vh) * 100);
+  padding-top: calc(var(--topbar-h, 56px) + var(--safe-top, 0px));
+  padding-bottom: calc(140px + var(--safe-bottom, 0px));
+  }
+  
+  .topbar {
+  padding-top: max(8px, var(--safe-top, env(safe-area-inset-top)));
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+  
+  .add-bar {
+  padding-bottom: calc(16px + var(--safe-bottom, env(safe-area-inset-bottom)));
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+  
+  /* Improve input handling on iOS */
+  input, textarea {
+  /* Prevent zoom */
+  font-size: max(16px, 1em);
+  /* Better touch targets */
+  min-height: 44px;
+  /* Smooth transitions */
+  transition: font-size 0.1s ease;
+  }
+  
+  /* Optimize gestures for iOS */
+  .task-card, .subtask {
+  /* Hardware acceleration */
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  /* Smooth animations */
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  }
+  
+  /* Handle notch devices */
+  .has-notch .topbar {
+  padding-top: max(20px, var(--safe-top, env(safe-area-inset-top)));
+  }
+  
+  /* Handle Dynamic Island devices */
+  .has-dynamic-island .topbar {
+  padding-top: max(24px, var(--safe-top, env(safe-area-inset-top)));
+  }
+  
+  /* Standalone app (PWA) styles */
+  .standalone-app .topbar {
+  /* No browser chrome, so we can be more aggressive with padding */
+  padding-top: var(--safe-top, env(safe-area-inset-top));
+  }
+  
+  /* Improve scroll performance */
+  .app, .subtask-list {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  }
+  
+  /* Better focus states for accessibility */
+  input:focus, textarea:focus, button:focus {
+  outline: 2px solid rgba(59, 130, 246, 0.6);
+  outline-offset: 2px;
+  }
+}
+
+/* Dark mode support for iOS */
+@media (prefers-color-scheme: dark) {
+  .topbar, .add-bar {
+  background: rgba(28, 28, 30, 0.95);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  }
+}
+`;

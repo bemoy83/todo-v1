@@ -1,4 +1,6 @@
 // rendering.js - DOM rendering functionality
+// UPDATED to work with new gesture system
+
 import { model, saveModel } from './state.js';
 import { safeExecute } from './utils.js';
 
@@ -8,8 +10,11 @@ export function setApp(appElement) {
   app = appElement;
 }
 
+// UPDATED renderAll function with gesture re-enabling
 export function renderAll(){
   return safeExecute(() => {
+	console.log('🎨 Starting renderAll...');
+	
 	const layer = app ? app.querySelector("#dragLayer") : null;
 	if(app) app.innerHTML = "";
 	if(!app) return;
@@ -24,12 +29,37 @@ export function renderAll(){
 	}
 	if(layer) app.appendChild(layer);
 	saveModel();
+	
+	// 🆕 NEW: Re-enable gestures after rendering new DOM
+	// We need to do this because the old DOM elements are gone
+	// and the gesture manager needs to attach to the new ones
+	setTimeout(() => {
+	  console.log('🔄 Re-enabling gestures after render...');
+	  
+	  // Import and call enableGestures
+	  import('./gestureManager.js').then(({ enableGestures }) => {
+		enableGestures();
+		console.log('✅ Gestures re-enabled');
+		
+		// Optional: Log how many gestures were set up
+		const taskCards = document.querySelectorAll('.task-card').length;
+		const swipeWraps = document.querySelectorAll('.swipe-wrap, .card-swipe-wrap').length;
+		console.log(`📊 Gestures set up for ${taskCards} task cards and ${swipeWraps} swipe elements`);
+	  }).catch(error => {
+		console.error('❌ Failed to re-enable gestures:', error);
+	  });
+	  
+	}, 10); // Small delay to ensure DOM is ready
+	
+	console.log('✅ renderAll completed');
+	
   }, () => {
-	console.error('Render failed, showing fallback');
+	console.error('❌ Render failed, showing fallback');
 	if(app) app.innerHTML = '<div class="empty">Something went wrong. Please refresh.</div>';
   });
 }
 
+// Keep existing renderCard function unchanged
 function renderCard(m){
   const card = document.createElement("article");
   card.className = "task-card card-swipe-wrap";

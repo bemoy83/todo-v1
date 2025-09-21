@@ -1,7 +1,13 @@
-// core.js – ES Module updated with TaskOperations
+// core.js – ES Module updated with NEW gesture system
 
-import { bindCrossSortContainer } from './drag.js';
-import { enableSwipe } from './swipe.js';
+// OLD IMPORTS (comment out or delete these lines):
+// import { bindCrossSortContainer } from './drag.js';
+// import { enableSwipe } from './swipe.js';
+
+// NEW IMPORTS (add these lines):
+import { gestureManager, enableGestures } from './gestureManager.js';
+
+// Keep existing imports:
 import { bindMenu } from './menu.js';
 import { debounce, safeExecute } from './utils.js';
 import { model, saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticUpdate } from './state.js';
@@ -10,12 +16,12 @@ import { renderAll } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
 
-// ===== Helpers =====
+// ===== Helpers (keep these) =====
 export const $  = (s, root=document) => root.querySelector(s);
 export const $$ = (s, root=document) => Array.from(root.querySelectorAll(s));
 export const pt = e => ({ x: e.clientX, y: e.clientY });
 
-// ---- Feature flags & logging ----
+// ---- Feature flags & logging (keep these) ----
 export const FLAGS = (function(){
   try {
     const saved = JSON.parse(localStorage.getItem('flags:swipe') || '{}');
@@ -27,14 +33,37 @@ const DEV = false;
 export function log(){ if(DEV) try{ console.log('[todo]', ...arguments); }catch{} }
 export function guard(fn){ return function guarded(){ try { return fn.apply(this, arguments); } catch(e){ if(DEV) console.error(e); } }; }
 
-// ---- Module state ----
+// ---- Module state (keep these) ----
 let app = null;
 let dragLayer = null;
-// shared gesture state (used by drag.js & swipe.js)
+// shared gesture state (used by old system - keep for compatibility)
 export const gesture = { drag: false, swipe: false };
 
-// ===== Behavior wiring =====
-let crossBound = false;
+// ===== NEW UPDATED BEHAVIOR WIRING =====
+let crossBound = false; // Keep this variable for now
+
+// UPDATED bootBehaviors function:
+export function bootBehaviors(){
+  console.log('🚀 Starting bootBehaviors with NEW gesture system...');
+  
+  // OLD CODE (comment out these lines):
+  // if(!crossBound){ bindCrossSortContainer(); crossBound = true; }
+  // enableSwipe(); // This needs to run every time to rebind to new DOM elements
+  
+  // NEW CODE (add this line):
+  enableGestures(); // This replaces both drag and swipe setup
+  
+  // Keep existing bindings:
+  bindAdders();
+  bindMenu();
+  bindKeyboardShortcuts();
+  
+  console.log('✅ bootBehaviors completed with new gesture system');
+}
+
+// Keep all existing functions (bindAdders, bindKeyboardShortcuts, etc.)
+// ... (rest of your existing core.js code stays the same)
+
 function bindKeyboardShortcuts() {
   if (document._keyboardBound) return;
   
@@ -63,14 +92,6 @@ function bindKeyboardShortcuts() {
   });
   
   document._keyboardBound = true;
-}
-
-export function bootBehaviors(){
-  if(!crossBound){ bindCrossSortContainer(); crossBound = true; }
-  enableSwipe(); // This needs to run every time to rebind to new DOM elements
-  bindAdders();
-  bindMenu();
-  bindKeyboardShortcuts();
 }
 
 function bindAdders(){
@@ -131,7 +152,7 @@ function bindAdders(){
   }, { once: false });
 }
 
-// ===== Shared util for swipe/drag =====
+// ===== Shared util for swipe/drag (keep this) =====
 export function clamp(n, min, max){ return Math.min(max, Math.max(min, n)); }
 
 // Expose start helper so main.js can assign DOM refs
@@ -142,8 +163,10 @@ export function setDomRefs(){
   setApp(app);
 }
 
-// Global cleanup function
+// UPDATED Global cleanup function
 export function cleanup() {
+  console.log('🧹 Starting cleanup...');
+  
   // Remove any global event listeners
   if (window._resizeHandler) {
     window.removeEventListener('resize', window._resizeHandler);
@@ -154,9 +177,14 @@ export function cleanup() {
     clearTimeout(window._resizeTimer);
   }
   
-  // Reset gesture state
+  // NEW: Clean up gesture manager (this prevents memory leaks)
+  gestureManager.destroy();
+  
+  // Reset gesture state (keep for compatibility with old code)
   gesture.drag = false;
   gesture.swipe = false;
+  
+  console.log('✅ Cleanup completed');
 }
 
 export { renderAll } from './rendering.js';
