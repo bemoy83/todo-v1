@@ -1,44 +1,64 @@
-// rendering.js - Reverted to original working state
-
-import { model, saveModel } from './state.js';
+// renderingNew.js - Event-driven renderer that subscribes to store changes
+import { store } from './store.js';
 import { safeExecute } from './utils.js';
 
 let app = null;
+let unsubscribe = null;
 
 export function setApp(appElement) {
   app = appElement;
+  
+  // Subscribe to store changes when app is set
+  if (unsubscribe) unsubscribe(); // Clean up previous subscription
+  
+  unsubscribe = store.subscribe((event) => {
+	const { action, newState } = event.detail;
+	console.log('🎨 Rendering due to action:', action.type);
+	
+	// We could optimize this to only re-render what changed
+	renderAll(newState);
+	
+	// Re-initialize behaviors after rendering
+	setTimeout(() => {
+	  import('./core.js').then(({ bootBehaviors }) => {
+		bootBehaviors();
+	  });
+	}, 50); // Give DOM time to settle
+  });
+  
+  // Initial render
+  renderAll(store.getState());
 }
 
-// RESTORE original renderAll function (remove gesture re-enabling)
-export function renderAll(){
+// Modified renderAll to accept state parameter
+export function renderAll(model = store.getState()) {
   return safeExecute(() => {
-	console.log('🎨 Starting renderAll...');
+	console.log('🎨 Starting renderAll with', model.length, 'tasks...');
 	
 	const layer = app ? app.querySelector("#dragLayer") : null;
-	if(app) app.innerHTML = "";
-	if(!app) return;
+	if (app) app.innerHTML = "";
+	if (!app) return;
 	
-	if(model.length === 0){
+	if (model.length === 0) {
 	  const empty = document.createElement('div');
 	  empty.className = 'empty';
 	  empty.innerHTML = '<div>🎉 All done!</div><div>Add your first task below.</div>';
 	  app.appendChild(empty);
 	} else {
-	  for(const m of model) app.appendChild(renderCard(m));
+	  for (const m of model) app.appendChild(renderCard(m));
 	}
-	if(layer) app.appendChild(layer);
-	saveModel();
+	if (layer) app.appendChild(layer);
 	
 	console.log('✅ renderAll completed');
 	
   }, () => {
 	console.error('❌ Render failed, showing fallback');
-	if(app) app.innerHTML = '<div class="empty">Something went wrong. Please refresh.</div>';
+	if (app) app.innerHTML = '<div class="empty">Something went wrong. Please refresh.</div>';
   });
 }
 
-// Keep existing renderCard function unchanged
-function renderCard(m){
+// Keep existing renderCard function unchanged (it's already pure)
+function renderCard(m) {
   const card = document.createElement("article");
   card.className = "task-card card-swipe-wrap";
   card.dataset.id = m.id;
@@ -80,7 +100,7 @@ function renderCard(m){
   }
 
   const list = card.querySelector(".subtask-list");
-  for(const st of m.subtasks){
+  for (const st of m.subtasks) {
 	const wrap = document.createElement("div");
 	wrap.className = "swipe-wrap";
 	wrap.dataset.id = st.id;
@@ -120,4 +140,12 @@ function renderCard(m){
   `;
   list.appendChild(addRow);
   return card;
+}
+
+// Clean up subscription when needed
+export function cleanup() {
+  if (unsubscribe) {
+	unsubscribe();
+	unsubscribe = null;
+  }
 }

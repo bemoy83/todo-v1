@@ -1,7 +1,7 @@
 // swipe.js - Simplified with CSS extracted
 import { pt, clamp, FLAGS, gesture } from './core.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
-import { TaskOperations } from './taskOperationsNew.js';
+import { TaskOperations } from './taskOperations.js';
 import { SWIPE, FEEDBACK, TIMING } from './constants.js';
 import { throttle } from './utils.js';
 

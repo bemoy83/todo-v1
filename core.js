@@ -5,10 +5,10 @@ import { enableSwipe } from './swipe.js';
 import { bindMenu } from './menu.js';
 import { debounce, safeExecute } from './utils.js';
 import { model, saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticUpdate } from './state.js';
-import { setApp } from './renderingNew.js'; // ← Changed to new rendering
+import { setApp } from './rendering.js'; // ← Changed to new rendering
 // Remove the old import: import { renderAll } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
-import { TaskOperations, focusSubtaskInput } from './taskOperationsNew.js'; // ← Changed to new operations
+import { TaskOperations, focusSubtaskInput } from './taskOperations.js'; // ← Changed to new operations
 
 // ===== Helpers (unchanged) =====
 export const $  = (s, root=document) => root.querySelector(s);
@@ -165,7 +165,7 @@ export function cleanup() {
   gesture.swipe = false;
   
   // Clean up new rendering subscription
-  import('./renderingNew.js').then(({ cleanup: cleanupRendering }) => {
+  import('./rendering.js').then(({ cleanup: cleanupRendering }) => {
     cleanupRendering();
   });
   

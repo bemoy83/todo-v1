@@ -1,5 +1,5 @@
 // editing.js - Edit functionality for tasks and subtasks - Updated with TaskOperations
-import { TaskOperations } from './taskOperationsNew.js';
+import { TaskOperations } from './taskOperations.js';
 
 export function startEditMode(subtaskElement) {
   console.log('Starting edit mode for subtask');
