@@ -1,5 +1,10 @@
 // utils.js - Shared utility functions
 
+// Add the uid function here so both old and new systems can use it
+export function uid(prefix='id'){ 
+  return `${prefix}-${Math.random().toString(36).slice(2,8)}${Date.now().toString(36).slice(-2)}`; 
+}
+
 export function debounce(func, wait) {
   let timeout;
   return function executedFunction(...args) {

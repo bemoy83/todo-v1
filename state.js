@@ -1,11 +1,9 @@
 // state.js - UPDATED to use new store (backward compatibility layer)
 import { store, getModel } from './store.js';
-import { debounce } from './utils.js';
+import { debounce, uid } from './utils.js'; // ← Import uid from utils
 
 // Keep existing exports for backward compatibility
-export function uid(prefix='id'){ 
-  return `${prefix}-${Math.random().toString(36).slice(2,8)}${Date.now().toString(36).slice(-2)}`; 
-}
+export { uid } from './utils.js'; // ← Re-export uid for backward compatibility
 
 // Backward compatibility: export model as a getter that always returns current state
 export const model = new Proxy([], {
