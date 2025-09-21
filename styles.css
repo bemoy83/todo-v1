@@ -877,13 +877,3 @@ button {
   outline-offset: 2px;
   }
 }
-
-/* Dark mode support for iOS */
-@media (prefers-color-scheme: dark) {
-  .topbar, .add-bar {
-  background: rgba(28, 28, 30, 0.95);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  }
-}
-`;
