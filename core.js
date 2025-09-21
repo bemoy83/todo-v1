@@ -1,14 +1,14 @@
-// core.js – Reverted to original working state
+// core.js – Updated to use new store-based rendering
 
 import { bindCrossSortContainer } from './drag.js';
 import { enableSwipe } from './swipe.js';
 import { bindMenu } from './menu.js';
 import { debounce, safeExecute } from './utils.js';
 import { model, saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticUpdate } from './state.js';
-import { setApp } from './rendering.js';
-import { renderAll } from './rendering.js';
+import { setApp } from './renderingNew.js'; // ← Changed to new rendering
+// Remove the old import: import { renderAll } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
-import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
+import { TaskOperations, focusSubtaskInput } from './taskOperationsNew.js'; // ← Changed to new operations
 
 // ===== Helpers (unchanged) =====
 export const $  = (s, root=document) => root.querySelector(s);
@@ -33,10 +33,10 @@ let dragLayer = null;
 // shared gesture state (used by drag.js & swipe.js)
 export const gesture = { drag: false, swipe: false };
 
-// ===== RESTORED ORIGINAL BEHAVIOR WIRING =====
+// ===== UPDATED BEHAVIOR WIRING =====
 let crossBound = false;
 
-// RESTORE original bootBehaviors function:
+// UPDATED bootBehaviors function - no manual renderAll calls needed!
 export function bootBehaviors(){
   
   if(!crossBound){ bindCrossSortContainer(); crossBound = true; }
@@ -62,8 +62,8 @@ function bindKeyboardShortcuts() {
           break;
         case 's':
           e.preventDefault();
-          // Force save
-          saveModel();
+          // Force save - store handles this automatically now
+          console.log('Save shortcut - store persists automatically');
           break;
       }
     }
@@ -78,7 +78,7 @@ function bindKeyboardShortcuts() {
 }
 
 function bindAdders(){
-  // Main add bar - UPDATED to use TaskOperations
+  // Main add bar - UPDATED to use new TaskOperations
   const form = document.getElementById('addMainForm');
   if(form && !form._bound){
     form.addEventListener('submit', async (e)=>{
@@ -88,7 +88,7 @@ function bindAdders(){
       if(!title) return;
       
       try {
-        // Use TaskOperations instead of direct model manipulation
+        // Use new TaskOperations - store will handle rendering automatically
         const task = await TaskOperations.task.create(title);
         inp.value = '';
         
@@ -104,7 +104,7 @@ function bindAdders(){
     form._bound = true;
   }
   
-  // Delegate for per-card subtask add - UPDATED to use TaskOperations
+  // Delegate for per-card subtask add - UPDATED to use new TaskOperations
   app?.addEventListener('submit', function(e){
     const f = e.target.closest('.add-subtask-form');
     if(!f) return;
@@ -115,7 +115,7 @@ function bindAdders(){
     const text = (input.value || '').trim();
     if(!text) return;
     
-    // Use TaskOperations instead of direct model manipulation
+    // Use new TaskOperations - store will handle rendering automatically
     TaskOperations.subtask.create(mainId, text).then(() => {
       // Clear input after successful creation
       input.value = '';
@@ -138,15 +138,15 @@ function bindAdders(){
 // ===== Shared util for swipe/drag (unchanged) =====
 export function clamp(n, min, max){ return Math.min(max, Math.max(min, n)); }
 
-// Expose start helper so main.js can assign DOM refs
+// UPDATED: Expose start helper so main.js can assign DOM refs
 export function setDomRefs(){
   app = document.getElementById('app');
   dragLayer = document.getElementById('dragLayer');
-  // Pass app to rendering module
+  // Pass app to NEW rendering module - this will set up store subscription
   setApp(app);
 }
 
-// RESTORE original cleanup function
+// UPDATED cleanup function
 export function cleanup() {
   console.log('🧹 Starting cleanup...');
   
@@ -164,7 +164,13 @@ export function cleanup() {
   gesture.drag = false;
   gesture.swipe = false;
   
+  // Clean up new rendering subscription
+  import('./renderingNew.js').then(({ cleanup: cleanupRendering }) => {
+    cleanupRendering();
+  });
+  
   console.log('✅ Cleanup completed');
 }
 
-export { renderAll } from './rendering.js';
+// NO LONGER EXPORT renderAll - the new system handles this automatically
+// export { renderAll } from './rendering.js'; // ← Remove this line

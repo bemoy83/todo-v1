@@ -1,9 +1,10 @@
-// main.js - Reverted to original working state
+// main.js - Updated for event-driven system
 
 import { setDomRefs, bootBehaviors, cleanup } from './core.js';
-import { renderAll } from './rendering.js';
-import './drag.js';      // RESTORE this line
-import './swipe.js';     // RESTORE this line
+// REMOVED: import { renderAll } from './rendering.js'; 
+// The new system handles rendering automatically via store subscriptions
+import './drag.js';
+import './swipe.js';
 import './menu.js';
 
 // Global error handler
@@ -20,12 +21,38 @@ window.addEventListener('unhandledrejection', (e) => {
 
 document.addEventListener('DOMContentLoaded', () => {
   try {
-    console.log('📱 App starting...');
+    console.log('📱 App starting with event-driven architecture...');
+    
+    // Set up DOM refs - this will trigger initial render via store subscription
     setDomRefs();
-    renderAll();
+    
+    // Boot behaviors - gesture system, menu, etc.
     bootBehaviors();
 
-    console.log('✅ App initialized successfully');
+    console.log('✅ Event-driven app initialized successfully');
+    
+    // Optional: Add undo/redo keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && !e.target.matches('input, textarea, [contenteditable]')) {
+        if (e.key === 'z' && !e.shiftKey) {
+          e.preventDefault();
+          import('./store.js').then(({ store }) => {
+            if (store.canUndo()) {
+              store.undo();
+              console.log('Undid last action');
+            }
+          });
+        } else if ((e.key === 'z' && e.shiftKey) || (e.key === 'y')) {
+          e.preventDefault();
+          import('./store.js').then(({ store }) => {
+            if (store.canRedo()) {
+              store.redo();
+              console.log('Redid last action');
+            }
+          });
+        }
+      }
+    });
     
   } catch (error) {
     console.error('App initialization failed:', error);
@@ -37,10 +64,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// RESTORE original cleanup
+// Clean up on page unload
 window.addEventListener('beforeunload', () => {
   console.log('🚪 Page unloading, cleaning up...');
-  cleanup(); // This is the original cleanup without gesture manager
+  cleanup();
 });
 
-console.log('📱 Original app loaded successfully');
+console.log('📱 Event-driven app loaded successfully');

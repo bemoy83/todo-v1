@@ -1,64 +1,72 @@
-// state.js - Model and state management
+// state.js - UPDATED to use new store (backward compatibility layer)
+import { store, getModel } from './store.js';
 import { debounce } from './utils.js';
 
-const DEFAULT_MODEL = [];
-
+// Keep existing exports for backward compatibility
 export function uid(prefix='id'){ 
   return `${prefix}-${Math.random().toString(36).slice(2,8)}${Date.now().toString(36).slice(-2)}`; 
 }
 
-export function loadModel(){
-  try{
-    const raw = localStorage.getItem('todo:model');
-    if(raw){
-      const data = JSON.parse(raw);
-      // One-time cleanup of old demo dataset
-      const looksLikeDemo = Array.isArray(data) && data.some(t => t && typeof t.title === 'string' && (
-        t.title === 'Ship mobilapp v1.2' || t.title === 'Skriv lanseringsblogg' || t.title === 'Planlegg sprint'
-      ));
-      if(looksLikeDemo){ try{ localStorage.removeItem('todo:model'); }catch{}; return []; }
-      return data;
+// Backward compatibility: export model as a getter that always returns current state
+export const model = new Proxy([], {
+  get(target, prop) {
+    const currentState = store.getState();
+    
+    // Handle array methods and properties
+    if (prop in Array.prototype || prop === 'length' || typeof prop === 'symbol') {
+      return currentState[prop];
     }
-  }catch{}
-  return structuredClone(DEFAULT_MODEL);
+    
+    // Handle numeric indices
+    if (!isNaN(prop)) {
+      return currentState[prop];
+    }
+    
+    return currentState[prop];
+  },
+  
+  set() {
+    console.warn('Direct model mutation detected! Use TaskOperations instead.');
+    return false; // Prevent direct mutations
+  }
+});
+
+// Backward compatibility: keep existing functions
+export function loadModel(){
+  return store.getState();
 }
 
-export let model = loadModel();
-
+// Updated to work with store
 export const debouncedSave = debounce(() => {
-  try { 
-    localStorage.setItem('todo:model', JSON.stringify(model)); 
-  } catch(e) {
-    console.error('Failed to save model:', e);
-  }
+  // Store handles its own persistence, but keep this for any external calls
+  console.log('debouncedSave called - store handles persistence automatically');
 }, 300);
 
 export function saveModel(){ 
-  debouncedSave();
+  // Store handles its own persistence, but keep this for backward compatibility
+  console.log('saveModel called - store handles persistence automatically');
 }
 
-// Helper function to sync task completion with subtasks
+// Keep existing helper functions
 export function syncTaskCompletion(task) {
   if (task.subtasks.length === 0) {
-    // No subtasks - keep task.completed as is
     return;
   }
   
-  // Has subtasks - derive completion from subtask state
   const allSubtasksDone = task.subtasks.every(st => st.done);
   task.completed = allSubtasksDone;
 }
 
-// Helper function to get current completion state
 export function isTaskCompleted(task) {
   return task.completed || false;
 }
 
-// Optimistic updates for better perceived performance
 export function optimisticUpdate(taskId, changes) {
-  const task = model.find(x => x.id === taskId);
+  const state = store.getState();
+  const task = state.find(x => x.id === taskId);
   if (task) {
-    Object.assign(task, changes);
-    return task;
+    // Instead of direct mutation, suggest using TaskOperations
+    console.warn('optimisticUpdate called. Consider using TaskOperations.task.update instead.');
+    return { ...task, ...changes };
   }
 }
