@@ -62,7 +62,10 @@ class GestureCoordinator {
   }
   
   endGesture(type, success = false) {
-	if (!this.activeGestures[type]) return;
+	if (!this.activeGestures[type]) {
+	  console.log(`⚠️ Tried to end ${type} gesture that wasn't active`);
+	  return;
+	}
 	
 	this.activeGestures[type] = false;
 	this.activeGestures[`${type}Type`] = null;

@@ -213,26 +213,32 @@ function reset() {
 
   // Event handlers - much cleaner now
   function onDown(e) {
-    if (gesture.drag || gesture.swipe || 
-        e.target.closest('.sub-handle') || 
-        e.target.closest('.card-handle') ||
-        e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
+  if (gesture.drag || gesture.swipe || 
+      e.target.closest('.sub-handle') || 
+      e.target.closest('.card-handle') ||
+      e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
   
-    // NEW: Check with coordinator before starting
-    if (!gestureCoordinator.canStartGesture('swipe', type)) {
-      console.log(`🚫 ${type} swipe blocked by coordinator`);
-      return;
-    }
+  // Check with coordinator before starting
+  if (!gestureCoordinator.canStartGesture('swipe', type)) {
+    console.log(`🚫 ${type} swipe blocked by coordinator`);
+    return;
+  }
   
-    const p = pt(e);
-    startX = p.x;
-    startY = p.y;
-    currentX = p.x;
-    
-    tracking = true;
-    captured = false;
-    isHolding = false;
-    gesture.swipe = true;
+  // ADD: Actually start the gesture here
+  if (!gestureCoordinator.onSwipeStart(type)) {
+    console.log(`🚫 Failed to start ${type} swipe with coordinator`);
+    return;
+  }
+  
+  const p = pt(e);
+  startX = p.x;
+  startY = p.y;
+  currentX = p.x;
+  
+  tracking = true;
+  captured = false;
+  isHolding = false;
+  gesture.swipe = true;
     
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
     wrap.classList.add('swiping');
@@ -266,10 +272,15 @@ function reset() {
         lockScroll();
         e.preventDefault();
         
-        // NEW: Register with coordinator and trigger activation haptic
-        if (gestureCoordinator.onSwipeStart(type)) {
-          gestureCoordinator.onSwipeActivate(type);
-        }
+        // OLD CODE (causing the bug):
+        // if (gestureCoordinator.onSwipeStart(type)) {
+        //   gestureCoordinator.onSwipeActivate(type);
+        // }
+        
+        // NEW CODE (fixed):
+        // Don't call onSwipeStart here - gesture was already started in onDown
+        // Just trigger activation haptic
+        gestureCoordinator.onSwipeActivate(type);
         
         startHoldTimer();
       } else {
