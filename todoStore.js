@@ -155,6 +155,8 @@ function todoReducer(state, action) {
 	  );
 	}
 	
+	// In your todoStore.js, replace the SUBTASK_MOVE case with this fixed version:
+	
 	case ActionTypes.SUBTASK_MOVE: {
 	  // Find source task and subtask
 	  const sourceTask = state.find(t => t.id === payload.fromTaskId);
@@ -162,6 +164,23 @@ function todoReducer(state, action) {
 	  
 	  if (!sourceTask || !subtask) return state;
 	  
+	  // Special case: moving within the same task (reordering)
+	  if (payload.fromTaskId === payload.toTaskId) {
+		return state.map(task => {
+		  if (task.id === payload.fromTaskId) {
+			const newSubtasks = [...task.subtasks];
+			// Remove the subtask from its current position
+			const currentIndex = newSubtasks.findIndex(s => s.id === payload.subtaskId);
+			const [movedSubtask] = newSubtasks.splice(currentIndex, 1);
+			// Insert it at the new position
+			newSubtasks.splice(payload.toIndex, 0, movedSubtask);
+			return { ...task, subtasks: newSubtasks };
+		  }
+		  return task;
+		});
+	  }
+	  
+	  // Moving between different tasks (original logic)
 	  return state.map(task => {
 		if (task.id === payload.fromTaskId) {
 		  // Remove from source

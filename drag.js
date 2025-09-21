@@ -275,35 +275,105 @@ export function bindCrossSortContainer() {
     requestAnimationFrame(step);
   }
 
-  // UPDATED: Use TaskOperations for subtask reordering
+  // Replace the subtask onPointerUp function in your drag.js with this:
+  
   async function onPointerUp() {
     clearTimeout(timer);
     document.body.classList.remove('lock-scroll');
     if (!started) { cleanupNoDrag(); return; }
-
+  
     const targetList = ph.parentElement?.classList.contains('subtask-list') ? ph.parentElement : null;
     const targetMainCard = targetList ? targetList.closest('.task-card') : null;
     const targetMainId = targetMainCard ? targetMainCard.dataset.id : null;
-
+  
     if (targetList && targetMainId) {
+      // Valid drop zone - proceed with move
       let newIndex = 0;
       for (let n = targetList.firstElementChild; n; n = n.nextElementSibling) {
         if (n === ph) break;
         if (n.classList?.contains('swipe-wrap')) newIndex++;
       }
       
-      // Use TaskOperations for consistent state management
       const subtaskId = drag.dataset.id;
       try {
         await TaskOperations.subtask.move(sourceMainId, subtaskId, targetMainId, newIndex);
       } catch (error) {
         console.error('Subtask drag failed:', error);
-        // TaskOperations handles the re-render, so we still cleanup
+        // On error, restore to original position
+        restoreSubtaskToOriginal();
+        return;
       }
+    } else {
+      // Invalid drop zone - restore to original position
+      console.log('Subtask dropped outside valid zone, restoring...');
+      restoreSubtaskToOriginal();
+      return;
     }
     
     cleanupDrag();
-    // TaskOperations handles the re-render, so we don't need to call renderAll here
+  }
+  
+  // Add this new helper function right after onPointerUp:
+  function restoreSubtaskToOriginal() {
+    try {
+      // Find the original task card
+      const originalTaskCard = document.querySelector(`.task-card[data-id="${sourceMainId}"]`);
+      const originalSubtaskList = originalTaskCard?.querySelector('.subtask-list');
+      
+      if (originalSubtaskList && drag && ph) {
+        // Create a new swipe-wrap element to restore the subtask
+        const restoredWrap = document.createElement('div');
+        restoredWrap.className = 'swipe-wrap';
+        restoredWrap.dataset.id = drag.dataset.id;
+        restoredWrap.dataset.mainId = sourceMainId;
+        
+        // Add the swipe actions HTML
+        restoredWrap.innerHTML = `
+          <div class="swipe-actions" aria-hidden="true">
+            <div class="zone left">
+              <button class="action complete" data-act="complete" title="Complete"></button>
+            </div>
+            <div class="zone right">
+              <button class="action edit" data-act="edit" title="Edit"></button>
+              <button class="action delete" data-act="delete" title="Delete"></button>
+            </div>
+          </div>`;
+        
+        // Append the original drag element (which contains the subtask content)
+        restoredWrap.appendChild(drag);
+        
+        // Insert before the add-subtask form (or at the end if no form)
+        const addForm = originalSubtaskList.querySelector('.add-subtask-form');
+        if (addForm) {
+          originalSubtaskList.insertBefore(restoredWrap, addForm);
+        } else {
+          originalSubtaskList.appendChild(restoredWrap);
+        }
+        
+        console.log('✅ Subtask restored to original position');
+      } else {
+        console.warn('Could not restore subtask manually, triggering re-render...');
+        // Fallback: Force a re-render from the store
+        setTimeout(() => {
+          import('./store.js').then(({ store }) => {
+            import('./rendering.js').then(({ renderAll }) => {
+              renderAll(store.getState());
+              import('./core.js').then(({ bootBehaviors }) => {
+                bootBehaviors();
+              });
+            });
+          });
+        }, 100);
+      }
+    } catch (error) {
+      console.error('Error restoring subtask:', error);
+      // Last resort: trigger a re-render
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } finally {
+      cleanupDrag();
+    }
   }
 
   function cleanupNoDrag() {
