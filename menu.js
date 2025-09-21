@@ -1,7 +1,7 @@
 // menu.js – Simplified with CSS moved to stylesheet
 import { model, uid, saveModel } from './state.js';
-import { renderAll } from './renderingNew.js';
-import { TaskOperations } from './taskOperationsNew.js';
+import { renderAll } from './rendering.js';
+import { TaskOperations } from './taskOperations.js';
 
 let menuBound = false;
 
