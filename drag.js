@@ -6,6 +6,9 @@ import { TaskOperations } from './taskOperations.js';
 import { DRAG } from './constants.js';
 const { HOLD_MS, JITTER_PX, GATE, FORCE, FOLLOW_MIN, FOLLOW_MAX, SPEED_GAIN, GAP_GAIN, SNAP_EPS } = DRAG;
 
+// Track which pointer controls the current drag (cards or subtasks)
+let activePointerId = null;
+
 export function bindCrossSortContainer() {
   const app = document.getElementById('app');
   const dragLayer = document.getElementById('dragLayer');
@@ -31,6 +34,9 @@ export function bindCrossSortContainer() {
   let cgw = 0, cgh = 0, crailLeft = 0, cardTicking = false, clastSwapY = null;
   let cintent = 0, cintentStartY = 0;
   const CARD_STICKY = 16, CARD_SWAP_PX = 56, CARD_EDGE_FRAC = 0.25;
+  
+  // Track which pointer is controlling a drag
+  let activePointerId = null;
 
   app.addEventListener('pointerdown', onPointerDown, { passive: false });
   app.addEventListener('pointerdown', onCardPointerDown, { passive: false });
@@ -38,15 +44,23 @@ export function bindCrossSortContainer() {
   // ===== Subtask drag =====
   function onPointerDown(e) {
     if (gesture.swipe || gesture.drag) return;
+  
+    // Only let the primary pointer start a potential drag
+    if (!e.isPrimary) return;
+  
     const handle = e.target.closest('.sub-handle');
     const row = e.target.closest('.subtask');
     if (!handle || !row) return;
-
-    e.preventDefault();
+  
+    if (e.cancelable) e.preventDefault();
+  
+    // Lock onto this pointer early; capture helps iOS keep events flowing to us
+    activePointerId = e.pointerId;
     try { handle.setPointerCapture?.(e.pointerId); } catch {}
+  
     drag = row; start = pt(e);
     hold = false; started = false; armedAt = null; sourceMainId = row.closest('.task-card').dataset.id;
-
+  
     clearTimeout(timer);
     timer = setTimeout(() => {
       if (!drag) return;
@@ -54,18 +68,23 @@ export function bindCrossSortContainer() {
       row.classList.add('armed');
       if (navigator.vibrate) navigator.vibrate(5);
     }, HOLD_MS);
-
+  
     window.addEventListener('pointermove', onPointerMove, { passive: false });
     window.addEventListener('pointerup', onPointerUp, { once: true });
+    // NEW: handle iOS/system interruptions (incoming call, CC pull-down, etc.)
+    window.addEventListener('pointercancel', onPointerUp, { once: true });
   }
 
   function onPointerMove(e) {
     if (!drag) return;
-
+  
+    // Ignore other fingers while dragging
+    if (e.pointerId !== activePointerId) return;
+  
     const samples = e.getCoalescedEvents?.() || [e];
     const last = samples[samples.length - 1];
     const p = pt(last);
-
+  
     const dx0 = Math.abs(p.x - start.x), dy0 = Math.abs(p.y - start.y);
     if (!hold) {
       if (dx0 > JITTER_PX || dy0 > JITTER_PX) {
@@ -75,13 +94,13 @@ export function bindCrossSortContainer() {
       }
       return;
     }
-
+  
     if (hold && !started) {
       const dx = Math.abs(p.x - armedAt.x), dy = Math.abs(p.y - armedAt.y);
       if (dx + dy > 2) startDrag(p); else return;
     } else if (!hold) return;
-
-    e.preventDefault();
+  
+    if (e.cancelable) e.preventDefault();
     const appRect = app.getBoundingClientRect();
     const pointerCY = p.y - appRect.top;
     prevTargetY = targetY;
@@ -276,11 +295,18 @@ export function bindCrossSortContainer() {
   }
 
   // UPDATED: Use TaskOperations for subtask reordering
-  async function onPointerUp() {
+  async function onPointerUp(e) {
+    // Ignore pointer ups from non-active pointers
+    if (e && e.pointerId !== activePointerId) return;
+  
     clearTimeout(timer);
     document.body.classList.remove('lock-scroll');
+  
+    // Clear the lock now; cleanup also clears it redundantly
+    activePointerId = null;
+  
     if (!started) { cleanupNoDrag(); return; }
-
+  
     const targetList = ph.parentElement?.classList.contains('subtask-list') ? ph.parentElement : null;
     const targetMainCard = targetList ? targetList.closest('.task-card') : null;
     const targetMainId = targetMainCard ? targetMainCard.dataset.id : null;
@@ -307,6 +333,7 @@ export function bindCrossSortContainer() {
   }
 
   function cleanupNoDrag() {
+    activePointerId = null;                 // <— add this
     try { if (drag) drag.classList.remove('armed'); } catch {}
     gesture.drag = false;
     drag = null; hold = false; started = false; start = null; armedAt = null;
@@ -314,6 +341,7 @@ export function bindCrossSortContainer() {
   }
 
   function cleanupDrag() {
+    activePointerId = null;                 // <— add this
     if (dragLayer) dragLayer.innerHTML = '';
     gesture.drag = false;
     drag = null; ghost = null; ph = null; hold = false; started = false; start = null; armedAt = null;
@@ -323,13 +351,21 @@ export function bindCrossSortContainer() {
   // ===== Card drag (parent reorder) — uses same smoothing tweaks =====
   function onCardPointerDown(e) {
     if (gesture.swipe || gesture.drag) return;
+  
+    if (!e.isPrimary) return;
+  
     const handle = e.target.closest('.card-handle');
     const card = e.target.closest('.task-card');
     if (!handle || !card) return;
-    e.preventDefault();
+  
+    if (e.cancelable) e.preventDefault();
+  
+    activePointerId = e.pointerId;
     try { handle.setPointerCapture?.(e.pointerId); } catch {}
+  
     cdrag = card; cstart = pt(e);
     chold = false; cstarted = false; carmedAt = null;
+  
     clearTimeout(ctimer);
     ctimer = setTimeout(() => {
       if (!cdrag) return;
@@ -337,15 +373,20 @@ export function bindCrossSortContainer() {
       cdrag.classList.add('armed');
       if (navigator.vibrate) navigator.vibrate(5);
     }, HOLD_MS);
+  
     window.addEventListener('pointermove', onCardPointerMove, { passive: false });
     window.addEventListener('pointerup', onCardPointerUp, { once: true });
+    window.addEventListener('pointercancel', onCardPointerUp, { once: true });
   }
 
   function onCardPointerMove(e) {
     if (!cdrag) return;
+  
+    if (e.pointerId !== activePointerId) return;
+  
     const samples = e.getCoalescedEvents?.() || [e];
     const p = pt(samples[samples.length - 1]);
-
+  
     const dx0 = Math.abs(p.x - cstart.x), dy0 = Math.abs(p.y - cstart.y);
     if (!chold) {
       if (dx0 > JITTER_PX || dy0 > JITTER_PX) {
@@ -359,8 +400,8 @@ export function bindCrossSortContainer() {
       const dx = Math.abs(p.x - carmedAt.x), dy = Math.abs(p.y - carmedAt.y);
       if (dx + dy > 2) startCardDrag(p); else return;
     } else if (!chold) return;
-
-    e.preventDefault();
+  
+    if (e.cancelable) e.preventDefault();
     const appRect = app.getBoundingClientRect();
     const pointerCY = p.y - appRect.top;
     cprevTargetY = ctargetY;
@@ -480,10 +521,15 @@ export function bindCrossSortContainer() {
   }
 
   // UPDATED: Use TaskOperations for card reordering
-  async function onCardPointerUp() {
-    clearTimeout(ctimer);
-    document.body.classList.remove('lock-scroll');
-    if (!cstarted) { cleanupCardNoDrag(); return; }
+  async function onCardPointerUp(e) {
+  if (e && e.pointerId !== activePointerId) return;
+  
+  clearTimeout(ctimer);
+  document.body.classList.remove('lock-scroll');
+  
+  activePointerId = null;
+  
+  if (!cstarted) { cleanupCardNoDrag(); return; }
 
     let newIndex = 0;
     for (let n = app.firstElementChild; n; n = n.nextElementSibling) {
@@ -509,15 +555,17 @@ export function bindCrossSortContainer() {
   }
 
   function cleanupCardNoDrag() {
-    try { if (cdrag) cdrag.classList.remove('armed'); } catch {}
-    gesture.drag = false;
+  activePointerId = null;                 // <— add this
+  try { if (cdrag) cdrag.classList.remove('armed'); } catch {}
+  gesture.drag = false;
     cdrag = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
     window.removeEventListener('pointermove', onCardPointerMove);
   }
 
   function cleanupCardDrag() {
-    if (dragLayer) dragLayer.innerHTML = '';
-    gesture.drag = false;
+  activePointerId = null;                 // <— add this
+  if (dragLayer) dragLayer.innerHTML = '';
+  gesture.drag = false;
     cdrag = null; cghost = null; cph = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
     window.removeEventListener('pointermove', onCardPointerMove);
   }
