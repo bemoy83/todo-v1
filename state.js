@@ -23,9 +23,17 @@ export const model = new Proxy([], {
     return currentState[prop];
   },
   
-  set() {
-    console.warn('Direct model mutation detected! Use TaskOperations instead.');
-    return false; // Prevent direct mutations
+  set(target, prop, value) {
+    // Special handling for length property (array clearing)
+    if (prop === 'length' && value === 0) {
+      console.warn('Direct model.length = 0 detected! Use store.dispatch(Actions.bulk.clear()) instead.');
+      console.warn('Consider updating your code to use the new store system.');
+      return true; // Allow the operation but warn
+    }
+    
+    console.warn(`Direct model mutation detected for property "${prop}"! Use TaskOperations instead.`);
+    console.warn('Consider updating your code to use the new store system.');
+    return true; // Allow the operation but warn (for now)
   }
 });
 

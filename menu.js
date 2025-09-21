@@ -1,7 +1,7 @@
 // menu.js – Simplified with CSS moved to stylesheet
 import { model, uid, saveModel } from './state.js';
-import { renderAll } from './rendering.js';
-import { TaskOperations } from './taskOperations.js';
+import { renderAll } from './renderingNew.js';
+import { TaskOperations } from './taskOperationsNew.js';
 
 let menuBound = false;
 
@@ -76,26 +76,29 @@ function bindMainMenu() {
     }
   });
 
-  // Clear all data using consistent approach
+  // Clear all data using new store system
   async function clearAllData(){
     if (!confirm('Delete all tasks? This cannot be undone.')) return;
     
-    try { 
-      localStorage.removeItem('todo:model'); 
-    } catch {}
-    
-    // Clear model and use TaskOperations approach for consistency
-    model.length = 0;
-    saveModel();
-    renderAll();
-    
-    // Re-bind behaviors after clearing
-    import('./core.js').then(({ bootBehaviors }) => {
-      bootBehaviors();
-    });
+    try {
+      // Use the new store system instead of direct model manipulation
+      const { store } = await import('./store.js');
+      const { Actions } = await import('./todoStore.js');
+      
+      // Dispatch bulk clear action
+      store.dispatch(Actions.bulk.clear());
+      
+      console.log('All data cleared via store');
+    } catch (error) {
+      console.error('Failed to clear data:', error);
+      // Fallback to direct localStorage removal
+      try { 
+        localStorage.removeItem('todo:model'); 
+        window.location.reload(); // Force reload as fallback
+      } catch {}
+    }
     
     closeMenu();
-    console.log('All data cleared');
   }
 
   // Export using TaskOperations
