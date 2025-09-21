@@ -1,5 +1,10 @@
-// drag.js — clean ESM: drag to reorder (cards + subtasks) - Updated with TaskOperations
 
+// drag.js — Updated with Gesture Coordinator integration
+
+// ADD this import at the top (after existing imports):
+import { gestureCoordinator } from './gestureCoordinator.js';
+
+// Keep all existing imports:
 import { $, $$, pt, clamp, gesture } from './core.js';
 import { model } from './state.js';
 import { TaskOperations } from './taskOperations.js';
@@ -7,65 +12,74 @@ import { DRAG } from './constants.js';
 const { HOLD_MS, JITTER_PX, GATE, FORCE, FOLLOW_MIN, FOLLOW_MAX, SPEED_GAIN, GAP_GAIN, SNAP_EPS } = DRAG;
 
 export function bindCrossSortContainer() {
-  const app = document.getElementById('app');
-  const dragLayer = document.getElementById('dragLayer');
-  if (!app || !dragLayer) return;
+const app = document.getElementById('app');
+const dragLayer = document.getElementById('dragLayer');
+if (!app || !dragLayer) return;
 
-  patchCSSOnce();
+patchCSSOnce();
 
-  // Helpers
-  const getRows = (list) => Array.from(list.children).filter(n => n.classList?.contains('swipe-wrap'));
-  const tailAnchor = (list) => list.querySelector('.add-subtask-form');
+// Helpers (unchanged)
+const getRows = (list) => Array.from(list.children).filter(n => n.classList?.contains('swipe-wrap'));
+const tailAnchor = (list) => list.querySelector('.add-subtask-form');
 
-  // ----- Subtask drag state -----
-  let drag = null, ghost = null, ph = null;
-  let start = null, hold = false, armedAt = null, timer = null, started = false;
-  let anchorY = 0, railLeft = 0, sourceMainId = null, gw = 0, gh = 0;
-  let targetY = 0, smoothY = 0, ticking = false, prevTargetY = 0, prevStepY = 0;
-  let slotOriginCenterY = 0, lastFrameT = 0;
+// All your existing state variables (unchanged)
+let drag = null, ghost = null, ph = null;
+let start = null, hold = false, armedAt = null, timer = null, started = false;
+let anchorY = 0, railLeft = 0, sourceMainId = null, gw = 0, gh = 0;
+let targetY = 0, smoothY = 0, ticking = false, prevTargetY = 0, prevStepY = 0;
+let slotOriginCenterY = 0, lastFrameT = 0;
 
-  // ----- Card drag state -----
-  let cdrag = null, cghost = null, cph = null;
-  let cstart = null, chold = false, cstarted = false, carmedAt = null, ctimer = null;
-  let csmoothY = 0, ctargetY = 0, cprevTargetY = 0, cslotOriginCenterY = 0, canchorY = 0;
-  let cgw = 0, cgh = 0, crailLeft = 0, cardTicking = false, clastSwapY = null;
-  let cintent = 0, cintentStartY = 0;
-  const CARD_STICKY = 16, CARD_SWAP_PX = 56, CARD_EDGE_FRAC = 0.25;
+let cdrag = null, cghost = null, cph = null;
+let cstart = null, chold = false, cstarted = false, carmedAt = null, ctimer = null;
+let csmoothY = 0, ctargetY = 0, cprevTargetY = 0, cslotOriginCenterY = 0, canchorY = 0;
+let cgw = 0, cgh = 0, crailLeft = 0, cardTicking = false, clastSwapY = null;
+let cintent = 0, cintentStartY = 0;
+const CARD_STICKY = 16, CARD_SWAP_PX = 56, CARD_EDGE_FRAC = 0.25;
 
-  app.addEventListener('pointerdown', onPointerDown, { passive: false });
-  app.addEventListener('pointerdown', onCardPointerDown, { passive: false });
+// Bind event listeners (unchanged)
+app.addEventListener('pointerdown', onPointerDown, { passive: false });
+app.addEventListener('pointerdown', onCardPointerDown, { passive: false });
 
   // ===== Subtask drag =====
   function onPointerDown(e) {
     if (gesture.swipe || gesture.drag) return;
+    
+    // NEW: Check with coordinator before starting
+    if (!gestureCoordinator.canStartGesture('drag', 'subtask')) {
+      console.log('🚫 Subtask drag blocked by coordinator');
+      return;
+    }
+    
     const handle = e.target.closest('.sub-handle');
     const row = e.target.closest('.subtask');
     if (!handle || !row) return;
-
+  
     e.preventDefault();
     try { handle.setPointerCapture?.(e.pointerId); } catch {}
     drag = row; start = pt(e);
     hold = false; started = false; armedAt = null; sourceMainId = row.closest('.task-card').dataset.id;
-
+  
     clearTimeout(timer);
     timer = setTimeout(() => {
       if (!drag) return;
       hold = true; armedAt = pt(e);
       row.classList.add('armed');
-      if (navigator.vibrate) navigator.vibrate(5);
+      
+      // NEW: Use coordinator for haptic instead of direct vibrate
+      gestureCoordinator.triggerHaptic('start', 'drag', 'subtask');
     }, HOLD_MS);
-
+  
     window.addEventListener('pointermove', onPointerMove, { passive: false });
     window.addEventListener('pointerup', onPointerUp, { once: true });
   }
 
   function onPointerMove(e) {
     if (!drag) return;
-
+  
     const samples = e.getCoalescedEvents?.() || [e];
     const last = samples[samples.length - 1];
     const p = pt(last);
-
+  
     const dx0 = Math.abs(p.x - start.x), dy0 = Math.abs(p.y - start.y);
     if (!hold) {
       if (dx0 > JITTER_PX || dy0 > JITTER_PX) {
@@ -75,58 +89,68 @@ export function bindCrossSortContainer() {
       }
       return;
     }
-
+  
     if (hold && !started) {
       const dx = Math.abs(p.x - armedAt.x), dy = Math.abs(p.y - armedAt.y);
       if (dx + dy > 2) startDrag(p); else return;
     } else if (!hold) return;
-
+  
     e.preventDefault();
     const appRect = app.getBoundingClientRect();
     const pointerCY = p.y - appRect.top;
     prevTargetY = targetY;
-    targetY = pointerCY - anchorY; // no rounding; we quantize at render
+    targetY = pointerCY - anchorY;
   }
 
   function startDrag(p) {
+    // NEW: Register with coordinator - if it fails, cleanup and return
+    if (!gestureCoordinator.onDragStart('subtask')) {
+      console.log('🚫 Failed to start subtask drag with coordinator');
+      cleanupNoDrag();
+      return;
+    }
+    
     started = true; drag.classList.remove('armed'); gesture.drag = true;
     document.body.classList.add('lock-scroll');
-
+  
     const r = drag.getBoundingClientRect();
     const appRect = app.getBoundingClientRect();
-
+  
     ghost = drag.cloneNode(true);
     ghost.classList.add('drag-ghost');
     ghost.style.setProperty('--ghost-w', r.width);
     ghost.style.setProperty('--ghost-h', r.height);
     ghost.style.width = r.width + 'px';
     ghost.style.height = r.height + 'px';
-    ghost.style.willChange = 'transform, opacity'; // GPU hint
+    ghost.style.willChange = 'transform, opacity';
     gw = r.width; gh = r.height;
-
+  
     const wrap = drag.closest('.swipe-wrap');
     ph = document.createElement('div');
     ph.className = 'placeholder';
     ph.style.height = r.height + 'px';
     wrap.insertAdjacentElement('afterend', ph);
     wrap.remove();
-
+  
     const pointerCY = (p.y - appRect.top);
     const cardTopCY = r.top - appRect.top;
     anchorY = pointerCY - cardTopCY;
-
+  
     railLeft = (r.left - appRect.left);
     ghost.style.left = railLeft + 'px';
-
+  
     targetY = smoothY = pointerCY - anchorY;
     prevTargetY = targetY; prevStepY = smoothY;
     ghost.style.transform = `translate3d(0,${smoothY}px,0)`;
     dragLayer.appendChild(ghost);
     ghost.style.visibility = 'visible';
-
+  
     const phr = ph.getBoundingClientRect();
     slotOriginCenterY = (phr.top - appRect.top) + phr.height / 2;
-
+  
+    // NEW: Trigger activation haptic
+    gestureCoordinator.onDragActivate('subtask');
+  
     lastFrameT = performance.now();
     if (!ticking) { ticking = true; requestAnimationFrame(step); }
   }
@@ -279,12 +303,20 @@ export function bindCrossSortContainer() {
   async function onPointerUp() {
     clearTimeout(timer);
     document.body.classList.remove('lock-scroll');
-    if (!started) { cleanupNoDrag(); return; }
-
+    
+    if (!started) { 
+      // NEW: End gesture with coordinator (no success)
+      gestureCoordinator.onDragEnd('subtask', false);
+      cleanupNoDrag(); 
+      return; 
+    }
+  
     const targetList = ph.parentElement?.classList.contains('subtask-list') ? ph.parentElement : null;
     const targetMainCard = targetList ? targetList.closest('.task-card') : null;
     const targetMainId = targetMainCard ? targetMainCard.dataset.id : null;
-
+  
+    let success = false;
+    
     if (targetList && targetMainId) {
       let newIndex = 0;
       for (let n = targetList.firstElementChild; n; n = n.nextElementSibling) {
@@ -292,18 +324,21 @@ export function bindCrossSortContainer() {
         if (n.classList?.contains('swipe-wrap')) newIndex++;
       }
       
-      // Use TaskOperations for consistent state management
       const subtaskId = drag.dataset.id;
       try {
         await TaskOperations.subtask.move(sourceMainId, subtaskId, targetMainId, newIndex);
+        success = true;
+        console.log('✅ Subtask drag completed successfully');
       } catch (error) {
-        console.error('Subtask drag failed:', error);
-        // TaskOperations handles the re-render, so we still cleanup
+        console.error('❌ Subtask drag failed:', error);
+        success = false;
       }
     }
     
+    // NEW: End gesture with coordinator
+    gestureCoordinator.onDragEnd('subtask', success);
+    
     cleanupDrag();
-    // TaskOperations handles the re-render, so we don't need to call renderAll here
   }
 
   function cleanupNoDrag() {
@@ -311,6 +346,11 @@ export function bindCrossSortContainer() {
     gesture.drag = false;
     drag = null; hold = false; started = false; start = null; armedAt = null;
     window.removeEventListener('pointermove', onPointerMove);
+    
+    // NEW: Ensure coordinator is notified if gesture didn't start properly
+    if (gestureCoordinator.activeGestures.drag) {
+      gestureCoordinator.onDragEnd('subtask', false);
+    }
   }
 
   function cleanupDrag() {
@@ -323,20 +363,32 @@ export function bindCrossSortContainer() {
   // ===== Card drag (parent reorder) — uses same smoothing tweaks =====
   function onCardPointerDown(e) {
     if (gesture.swipe || gesture.drag) return;
+    
+    // NEW: Check with coordinator before starting
+    if (!gestureCoordinator.canStartGesture('drag', 'task')) {
+      console.log('🚫 Task drag blocked by coordinator');
+      return;
+    }
+    
     const handle = e.target.closest('.card-handle');
     const card = e.target.closest('.task-card');
     if (!handle || !card) return;
+    
     e.preventDefault();
     try { handle.setPointerCapture?.(e.pointerId); } catch {}
     cdrag = card; cstart = pt(e);
     chold = false; cstarted = false; carmedAt = null;
+    
     clearTimeout(ctimer);
     ctimer = setTimeout(() => {
       if (!cdrag) return;
       chold = true; carmedAt = pt(e);
       cdrag.classList.add('armed');
-      if (navigator.vibrate) navigator.vibrate(5);
+      
+      // NEW: Use coordinator for haptic instead of direct vibrate
+      gestureCoordinator.triggerHaptic('start', 'drag', 'task');
     }, HOLD_MS);
+    
     window.addEventListener('pointermove', onCardPointerMove, { passive: false });
     window.addEventListener('pointerup', onCardPointerUp, { once: true });
   }
@@ -345,7 +397,7 @@ export function bindCrossSortContainer() {
     if (!cdrag) return;
     const samples = e.getCoalescedEvents?.() || [e];
     const p = pt(samples[samples.length - 1]);
-
+  
     const dx0 = Math.abs(p.x - cstart.x), dy0 = Math.abs(p.y - cstart.y);
     if (!chold) {
       if (dx0 > JITTER_PX || dy0 > JITTER_PX) {
@@ -355,11 +407,12 @@ export function bindCrossSortContainer() {
       }
       return;
     }
+    
     if (chold && !cstarted) {
       const dx = Math.abs(p.x - carmedAt.x), dy = Math.abs(p.y - carmedAt.y);
       if (dx + dy > 2) startCardDrag(p); else return;
     } else if (!chold) return;
-
+  
     e.preventDefault();
     const appRect = app.getBoundingClientRect();
     const pointerCY = p.y - appRect.top;
@@ -368,26 +421,34 @@ export function bindCrossSortContainer() {
   }
 
   function startCardDrag(p) {
+    // NEW: Register with coordinator - if it fails, cleanup and return
+    if (!gestureCoordinator.onDragStart('task')) {
+      console.log('🚫 Failed to start task drag with coordinator');
+      cleanupCardNoDrag();
+      return;
+    }
+    
     cstarted = true; cdrag.classList.remove('armed'); gesture.drag = true;
     document.body.classList.add('lock-scroll');
-
+  
     const r = cdrag.getBoundingClientRect();
     const appRect = app.getBoundingClientRect();
-
+  
     cghost = cdrag.cloneNode(true);
     cghost.classList.add('drag-ghost');
     cghost.style.setProperty('--ghost-w', r.width);
     cghost.style.setProperty('--ghost-h', r.height);
-    cghost.style.width = r.width + 'px'; cghost.style.height = r.height + 'px';
+    cghost.style.width = r.width + 'px'; 
+    cghost.style.height = r.height + 'px';
     cghost.style.willChange = 'transform, opacity';
     cgw = r.width; cgh = r.height;
-
+  
     cph = document.createElement('div');
     cph.className = 'placeholder';
     cph.style.height = r.height + 'px';
     cdrag.insertAdjacentElement('afterend', cph);
     cdrag.remove();
-
+  
     const appRect2 = app.getBoundingClientRect();
     const pointerCY = (p.y - appRect2.top);
     const cardTopCY = r.top - appRect2.top;
@@ -399,10 +460,13 @@ export function bindCrossSortContainer() {
     cghost.style.transform = `translate3d(0,${csmoothY}px,0)`;
     dragLayer.appendChild(cghost);
     cghost.style.visibility = 'visible';
-
+  
     const phr = cph.getBoundingClientRect();
     cslotOriginCenterY = (phr.top - appRect2.top) + phr.height / 2;
-
+  
+    // NEW: Trigger activation haptic
+    gestureCoordinator.onDragActivate('task');
+  
     if (!cardTicking) { cardTicking = true; requestAnimationFrame(cardStep); }
   }
 
@@ -483,44 +547,61 @@ export function bindCrossSortContainer() {
   async function onCardPointerUp() {
     clearTimeout(ctimer);
     document.body.classList.remove('lock-scroll');
-    if (!cstarted) { cleanupCardNoDrag(); return; }
-
+    
+    if (!cstarted) { 
+      // NEW: End gesture with coordinator (no success)
+      gestureCoordinator.onDragEnd('task', false);
+      cleanupCardNoDrag(); 
+      return; 
+    }
+  
     let newIndex = 0;
     for (let n = app.firstElementChild; n; n = n.nextElementSibling) {
       if (n === cph) break;
       if (n.classList?.contains('task-card')) newIndex++;
     }
-
+  
     const movingId = cdrag.dataset.id;
     const oldIndex = model.findIndex(x => x.id === movingId);
     
+    let success = false;
+    
     if (oldIndex !== -1) {
       try {
-        // Use TaskOperations for consistent state management
         await TaskOperations.task.move(oldIndex, newIndex);
+        success = true;
+        console.log('✅ Task drag completed successfully');
       } catch (error) {
-        console.error('Task drag failed:', error);
-        // TaskOperations handles the re-render, so we still cleanup
+        console.error('❌ Task drag failed:', error);
+        success = false;
       }
     }
-
+  
+    // NEW: End gesture with coordinator
+    gestureCoordinator.onDragEnd('task', success);
+  
     cleanupCardDrag();
-    // TaskOperations handles the re-render, so we don't need to call renderAll here
   }
-
-  function cleanupCardNoDrag() {
+  
+function cleanupCardNoDrag() {
     try { if (cdrag) cdrag.classList.remove('armed'); } catch {}
     gesture.drag = false;
     cdrag = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
     window.removeEventListener('pointermove', onCardPointerMove);
-  }
-
-  function cleanupCardDrag() {
+    
+    // NEW: Ensure coordinator is notified if gesture didn't start properly
+    if (gestureCoordinator.activeGestures.drag) {
+      gestureCoordinator.onDragEnd('task', false);
+    }
+  }  
+  
+function cleanupCardDrag() {
     if (dragLayer) dragLayer.innerHTML = '';
     gesture.drag = false;
     cdrag = null; cghost = null; cph = null; chold = false; cstarted = false; cstart = null; carmedAt = null; cintent = 0; clastSwapY = null;
     window.removeEventListener('pointermove', onCardPointerMove);
   }
+  console.log('🎯 Drag system updated with gesture coordinator integration');
 }
 
 function patchCSSOnce() {

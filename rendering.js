@@ -1,5 +1,4 @@
-// rendering.js - DOM rendering functionality
-// UPDATED to work with new gesture system
+// rendering.js - Reverted to original working state
 
 import { model, saveModel } from './state.js';
 import { safeExecute } from './utils.js';
@@ -10,7 +9,7 @@ export function setApp(appElement) {
   app = appElement;
 }
 
-// UPDATED renderAll function with gesture re-enabling
+// RESTORE original renderAll function (remove gesture re-enabling)
 export function renderAll(){
   return safeExecute(() => {
 	console.log('🎨 Starting renderAll...');
@@ -30,26 +29,22 @@ export function renderAll(){
 	if(layer) app.appendChild(layer);
 	saveModel();
 	
-	// 🆕 NEW: Re-enable gestures after rendering new DOM
-	// We need to do this because the old DOM elements are gone
-	// and the gesture manager needs to attach to the new ones
-	setTimeout(() => {
-	  console.log('🔄 Re-enabling gestures after render...');
-	  
-	  // Import and call enableGestures
-	  import('./gestureManager.js').then(({ enableGestures }) => {
-		enableGestures();
-		console.log('✅ Gestures re-enabled');
-		
-		// Optional: Log how many gestures were set up
-		const taskCards = document.querySelectorAll('.task-card').length;
-		const swipeWraps = document.querySelectorAll('.swipe-wrap, .card-swipe-wrap').length;
-		console.log(`📊 Gestures set up for ${taskCards} task cards and ${swipeWraps} swipe elements`);
-	  }).catch(error => {
-		console.error('❌ Failed to re-enable gestures:', error);
-	  });
-	  
-	}, 10); // Small delay to ensure DOM is ready
+	// REMOVE all this gesture re-enabling code:
+	// setTimeout(() => {
+	//   console.log('🔄 Re-enabling gestures after render...');
+	//   
+	//   import('./gestureManager.js').then(({ enableGestures }) => {
+	//     enableGestures();
+	//     console.log('✅ Gestures re-enabled');
+	//     
+	//     const taskCards = document.querySelectorAll('.task-card').length;
+	//     const swipeWraps = document.querySelectorAll('.swipe-wrap, .card-swipe-wrap').length;
+	//     console.log(`📊 Gestures set up for ${taskCards} task cards and ${swipeWraps} swipe elements`);
+	//   }).catch(error => {
+	//     console.error('❌ Failed to re-enable gestures:', error);
+	//   });
+	//   
+	// }, 10);
 	
 	console.log('✅ renderAll completed');
 	
