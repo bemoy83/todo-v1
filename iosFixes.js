@@ -1,11 +1,15 @@
-// iosFixes.js - Complete iOS Safari and mobile optimizations
+// iosFixes.js - CORRECTED VERSION with proper constructor order
 
 export class iOSManager {
   constructor() {
 	this.isIOS = this.detectIOS();
 	this.isStandalone = this.isRunningStandalone();
-	this.deviceInfo = this.getDeviceInfo();
+	
+	// FIX: Calculate safe areas FIRST before using them
 	this.safeAreas = this.calculateSafeAreas();
+	
+	// THEN get device info (which uses safe areas)
+	this.deviceInfo = this.getDeviceInfo();
 	
 	// Auto-apply fixes if on iOS
 	if (this.isIOS) {
@@ -26,6 +30,35 @@ export class iOSManager {
 	// Check if app is running as PWA (added to home screen)
 	return window.matchMedia('(display-mode: standalone)').matches ||
 		   window.navigator.standalone === true;
+  }
+
+  // FIX: Simplified calculateSafeAreas that doesn't depend on other properties
+  calculateSafeAreas() {
+	try {
+	  const testElement = document.createElement('div');
+	  testElement.style.cssText = `
+		position: fixed;
+		top: 0; left: 0; right: 0; bottom: 0;
+		padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+		visibility: hidden;
+		pointer-events: none;
+	  `;
+	  
+	  document.body.appendChild(testElement);
+	  const computed = getComputedStyle(testElement);
+	  const safeAreas = {
+		top: parseInt(computed.paddingTop) || 0,
+		right: parseInt(computed.paddingRight) || 0,
+		bottom: parseInt(computed.paddingBottom) || 0,
+		left: parseInt(computed.paddingLeft) || 0
+	  };
+	  document.body.removeChild(testElement);
+	  
+	  return safeAreas;
+	} catch (error) {
+	  console.warn('Failed to calculate safe areas:', error);
+	  return { top: 0, right: 0, bottom: 0, left: 0 };
+	}
   }
 
   getDeviceInfo() {
@@ -81,43 +114,25 @@ export class iOSManager {
   }
 
   getOrientation() {
-	if (screen.orientation) {
-	  return screen.orientation.angle === 0 || screen.orientation.angle === 180 ? 'portrait' : 'landscape';
+	try {
+	  if (screen.orientation) {
+		return screen.orientation.angle === 0 || screen.orientation.angle === 180 ? 'portrait' : 'landscape';
+	  }
+	  return window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
+	} catch (error) {
+	  return 'unknown';
 	}
-	return window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
   }
 
   hasNotch() {
-	// Detect iPhone X-style notch by safe area
-	return this.safeAreas.top > 20;
+	// FIX: Safe check for safeAreas
+	return this.safeAreas && this.safeAreas.top > 20;
   }
 
   hasDynamicIsland() {
-	// iPhone 14 Pro/Pro Max detection (approximation)
-	return this.deviceInfo?.deviceType?.includes('Pro') && this.safeAreas.top >= 47;
-  }
-
-  calculateSafeAreas() {
-	const testElement = document.createElement('div');
-	testElement.style.cssText = `
-	  position: fixed;
-	  top: 0; left: 0; right: 0; bottom: 0;
-	  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
-	  visibility: hidden;
-	  pointer-events: none;
-	`;
-	
-	document.body.appendChild(testElement);
-	const computed = getComputedStyle(testElement);
-	const safeAreas = {
-	  top: parseInt(computed.paddingTop) || 0,
-	  right: parseInt(computed.paddingRight) || 0,
-	  bottom: parseInt(computed.paddingBottom) || 0,
-	  left: parseInt(computed.paddingLeft) || 0
-	};
-	document.body.removeChild(testElement);
-	
-	return safeAreas;
+	// FIX: Safe check for both properties
+	return this.deviceInfo?.deviceType?.includes('Pro') && 
+		   this.safeAreas && this.safeAreas.top >= 47;
   }
 
   // ===== FIX IMPLEMENTATION =====
@@ -143,13 +158,17 @@ export class iOSManager {
 	console.log('📏 Fixing viewport height...');
 	
 	const setVH = () => {
-	  // Use the visual viewport API if available (iOS 13+)
-	  const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-	  const vh = height * 0.01;
-	  document.documentElement.style.setProperty('--vh', `${vh}px`);
-	  document.documentElement.style.setProperty('--real-vh', `${window.innerHeight * 0.01}px`);
-	  
-	  console.log(`📱 Viewport height set: ${height}px (vh: ${vh}px)`);
+	  try {
+		// Use the visual viewport API if available (iOS 13+)
+		const height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+		const vh = height * 0.01;
+		document.documentElement.style.setProperty('--vh', `${vh}px`);
+		document.documentElement.style.setProperty('--real-vh', `${window.innerHeight * 0.01}px`);
+		
+		console.log(`📱 Viewport height set: ${height}px (vh: ${vh}px)`);
+	  } catch (error) {
+		console.warn('Failed to set viewport height:', error);
+	  }
 	};
 	
 	// Set immediately
@@ -178,115 +197,126 @@ export class iOSManager {
   fixScrolling() {
 	console.log('📜 Fixing scroll behavior...');
 	
-	// Enable momentum scrolling globally
-	document.body.style.webkitOverflowScrolling = 'touch';
-	
-	// Prevent document scrolling when not needed
-	let lastTouchY = 0;
-	
-	document.addEventListener('touchstart', (e) => {
-	  lastTouchY = e.touches[0].clientY;
-	}, { passive: true });
-	
-	document.addEventListener('touchmove', (e) => {
-	  const currentY = e.touches[0].clientY;
-	  const deltaY = lastTouchY - currentY;
+	try {
+	  // Enable momentum scrolling globally
+	  document.body.style.webkitOverflowScrolling = 'touch';
 	  
-	  // Find scrollable parent
-	  const scrollableParent = e.target.closest('.app, .scrollable, [data-scrollable]');
+	  // Prevent document scrolling when not needed
+	  let lastTouchY = 0;
 	  
-	  if (!scrollableParent) {
-		// No scrollable parent, prevent default
-		e.preventDefault();
-		return;
-	  }
+	  document.addEventListener('touchstart', (e) => {
+		lastTouchY = e.touches[0].clientY;
+	  }, { passive: true });
 	  
-	  // Check if at scroll boundaries
-	  const { scrollTop, scrollHeight, clientHeight } = scrollableParent;
-	  const atTop = scrollTop === 0;
-	  const atBottom = scrollTop + clientHeight >= scrollHeight;
+	  document.addEventListener('touchmove', (e) => {
+		try {
+		  const currentY = e.touches[0].clientY;
+		  const deltaY = lastTouchY - currentY;
+		  
+		  // Find scrollable parent
+		  const scrollableParent = e.target.closest('.app, .scrollable, [data-scrollable]');
+		  
+		  if (!scrollableParent) {
+			// No scrollable parent, prevent default
+			e.preventDefault();
+			return;
+		  }
+		  
+		  // Check if at scroll boundaries
+		  const { scrollTop, scrollHeight, clientHeight } = scrollableParent;
+		  const atTop = scrollTop === 0;
+		  const atBottom = scrollTop + clientHeight >= scrollHeight;
+		  
+		  // Prevent rubber band at boundaries
+		  if ((atTop && deltaY < 0) || (atBottom && deltaY > 0)) {
+			e.preventDefault();
+		  }
+		  
+		  lastTouchY = currentY;
+		} catch (error) {
+		  console.warn('Touch move error:', error);
+		}
+	  }, { passive: false });
 	  
-	  // Prevent rubber band at boundaries
-	  if ((atTop && deltaY < 0) || (atBottom && deltaY > 0)) {
-		e.preventDefault();
-	  }
-	  
-	  lastTouchY = currentY;
-	}, { passive: false });
-	
-	// Prevent overscroll
-	document.body.style.overscrollBehavior = 'none';
+	  // Prevent overscroll
+	  document.body.style.overscrollBehavior = 'none';
+	} catch (error) {
+	  console.warn('Failed to fix scrolling:', error);
+	}
   }
 
   // Fix 3: Prevent zoom on input focus
   fixInputZoom() {
 	console.log('🔍 Fixing input zoom...');
 	
-	const originalFontSizes = new WeakMap();
-	
-	// Prevent zoom by ensuring inputs are at least 16px
-	document.addEventListener('focusin', (e) => {
-	  if (e.target.matches('input, textarea, select')) {
-		const element = e.target;
-		const computedStyle = getComputedStyle(element);
-		const currentFontSize = parseFloat(computedStyle.fontSize);
-		
-		// Store original font size
-		originalFontSizes.set(element, element.style.fontSize || '');
-		
-		// Set to 16px if smaller (iOS won't zoom if 16px+)
-		if (currentFontSize < 16) {
-		  element.style.fontSize = '16px';
-		  element.dataset.iosZoomFixed = 'true';
+	try {
+	  const originalFontSizes = new WeakMap();
+	  
+	  // Prevent zoom by ensuring inputs are at least 16px
+	  document.addEventListener('focusin', (e) => {
+		if (e.target.matches('input, textarea, select')) {
+		  const element = e.target;
+		  const computedStyle = getComputedStyle(element);
+		  const currentFontSize = parseFloat(computedStyle.fontSize);
+		  
+		  // Store original font size
+		  originalFontSizes.set(element, element.style.fontSize || '');
+		  
+		  // Set to 16px if smaller (iOS won't zoom if 16px+)
+		  if (currentFontSize < 16) {
+			element.style.fontSize = '16px';
+			element.dataset.iosZoomFixed = 'true';
+		  }
 		}
-	  }
-	});
-	
-	document.addEventListener('focusout', (e) => {
-	  if (e.target.matches('input, textarea, select') && e.target.dataset.iosZoomFixed) {
-		const element = e.target;
-		const originalSize = originalFontSizes.get(element);
-		
-		if (originalSize !== undefined) {
-		  element.style.fontSize = originalSize;
-		  originalFontSizes.delete(element);
+	  });
+	  
+	  document.addEventListener('focusout', (e) => {
+		if (e.target.matches('input, textarea, select') && e.target.dataset.iosZoomFixed) {
+		  const element = e.target;
+		  const originalSize = originalFontSizes.get(element);
+		  
+		  if (originalSize !== undefined) {
+			element.style.fontSize = originalSize;
+			originalFontSizes.delete(element);
+		  }
+		  
+		  delete element.dataset.iosZoomFixed;
 		}
-		
-		delete element.dataset.iosZoomFixed;
-	  }
-	});
-	
-	// Also prevent double-tap zoom
-	let lastTouchEnd = 0;
-	document.addEventListener('touchend', (event) => {
-	  const now = Date.now();
-	  if (now - lastTouchEnd <= 300) {
-		event.preventDefault();
-	  }
-	  lastTouchEnd = now;
-	}, { passive: false });
+	  });
+	  
+	  // Also prevent double-tap zoom
+	  let lastTouchEnd = 0;
+	  document.addEventListener('touchend', (event) => {
+		const now = Date.now();
+		if (now - lastTouchEnd <= 300) {
+		  event.preventDefault();
+		}
+		lastTouchEnd = now;
+	  }, { passive: false });
+	} catch (error) {
+	  console.warn('Failed to fix input zoom:', error);
+	}
   }
 
   // Fix 4: Optimize touch handling
   fixTouchHandling() {
 	console.log('👆 Optimizing touch handling...');
 	
-	// Add touch-action support
-	document.body.style.touchAction = 'manipulation';
-	
-	// Improve touch responsiveness
-	document.addEventListener('touchstart', () => {}, { passive: true });
-	
-	// Prevent text selection during gestures
-	document.addEventListener('selectstart', (e) => {
-	  if (e.target.closest('.task-card, .subtask, .swipe-wrap')) {
-		e.preventDefault();
-	  }
-	});
-	
-	// Fix touch delay
-	if (window.FastClick) {
-	  FastClick.attach(document.body);
+	try {
+	  // Add touch-action support
+	  document.body.style.touchAction = 'manipulation';
+	  
+	  // Improve touch responsiveness
+	  document.addEventListener('touchstart', () => {}, { passive: true });
+	  
+	  // Prevent text selection during gestures
+	  document.addEventListener('selectstart', (e) => {
+		if (e.target.closest('.task-card, .subtask, .swipe-wrap')) {
+		  e.preventDefault();
+		}
+	  });
+	} catch (error) {
+	  console.warn('Failed to optimize touch handling:', error);
 	}
   }
 
@@ -294,171 +324,157 @@ export class iOSManager {
   fixSafeAreas() {
 	console.log('🛡️ Applying safe area fixes...');
 	
-	// Set CSS custom properties for safe areas
-	Object.entries(this.safeAreas).forEach(([side, value]) => {
-	  document.documentElement.style.setProperty(`--safe-${side}`, `${value}px`);
-	});
-	
-	// Add classes for different device types
-	document.body.classList.add('ios-device');
-	
-	if (this.hasNotch()) {
-	  document.body.classList.add('has-notch');
+	try {
+	  // Set CSS custom properties for safe areas
+	  Object.entries(this.safeAreas).forEach(([side, value]) => {
+		document.documentElement.style.setProperty(`--safe-${side}`, `${value}px`);
+	  });
+	  
+	  // Add classes for different device types
+	  document.body.classList.add('ios-device');
+	  
+	  if (this.hasNotch()) {
+		document.body.classList.add('has-notch');
+	  }
+	  
+	  if (this.hasDynamicIsland()) {
+		document.body.classList.add('has-dynamic-island');
+	  }
+	  
+	  if (this.isStandalone) {
+		document.body.classList.add('standalone-app');
+	  }
+	  
+	  // Log safe area info
+	  console.log('📱 Safe areas:', this.safeAreas);
+	  console.log('📱 Device type:', this.deviceInfo.deviceType);
+	} catch (error) {
+	  console.warn('Failed to apply safe area fixes:', error);
 	}
-	
-	if (this.hasDynamicIsland()) {
-	  document.body.classList.add('has-dynamic-island');
-	}
-	
-	if (this.isStandalone) {
-	  document.body.classList.add('standalone-app');
-	}
-	
-	// Log safe area info
-	console.log('📱 Safe areas:', this.safeAreas);
-	console.log('📱 Device type:', this.deviceInfo.deviceType);
   }
 
   // Fix 6: Animation optimizations
   optimizeAnimations() {
 	console.log('🎬 Optimizing animations for iOS...');
 	
-	// Track elements with will-change
-	const optimizedElements = new WeakSet();
-	
-	this.addWillChange = (element, properties = 'transform') => {
-	  if (!optimizedElements.has(element)) {
-		element.style.willChange = properties;
-		optimizedElements.add(element);
-	  }
-	};
-	
-	this.removeWillChange = (element) => {
-	  if (optimizedElements.has(element)) {
-		element.style.willChange = 'auto';
-		optimizedElements.delete(element);
-	  }
-	};
-	
-	// Auto-cleanup will-change after animations
-	const observer = new MutationObserver((mutations) => {
-	  mutations.forEach((mutation) => {
-		if (mutation.type === 'attributes' && mutation.attributeName === 'style') {
-		  const element = mutation.target;
-		  if (element.style.transform === '' && optimizedElements.has(element)) {
-			setTimeout(() => this.removeWillChange(element), 100);
-		  }
+	try {
+	  // Track elements with will-change
+	  const optimizedElements = new WeakSet();
+	  
+	  this.addWillChange = (element, properties = 'transform') => {
+		if (!optimizedElements.has(element)) {
+		  element.style.willChange = properties;
+		  optimizedElements.add(element);
 		}
-	  });
-	});
-	
-	observer.observe(document.body, {
-	  attributes: true,
-	  subtree: true,
-	  attributeFilter: ['style']
-	});
-	
-	// Store observer for cleanup
-	this.animationObserver = observer;
-	
-	// Make helpers globally available
-	window.iOSAnimationHelpers = {
-	  addWillChange: this.addWillChange,
-	  removeWillChange: this.removeWillChange
-	};
+	  };
+	  
+	  this.removeWillChange = (element) => {
+		if (optimizedElements.has(element)) {
+		  element.style.willChange = 'auto';
+		  optimizedElements.delete(element);
+		}
+	  };
+	  
+	  // Make helpers globally available
+	  window.iOSAnimationHelpers = {
+		addWillChange: this.addWillChange,
+		removeWillChange: this.removeWillChange
+	  };
+	} catch (error) {
+	  console.warn('Failed to optimize animations:', error);
+	}
   }
 
   // Fix 7: Prevent unwanted behaviors
   preventUnwantedBehaviors() {
 	console.log('🚫 Preventing unwanted iOS behaviors...');
 	
-	// Prevent pull-to-refresh
-	document.addEventListener('touchstart', (e) => {
-	  if (e.touches.length !== 1) return;
+	try {
+	  // Prevent context menu on long press (for gesture elements)
+	  document.addEventListener('contextmenu', (e) => {
+		if (e.target.closest('.task-card, .subtask, .sub-handle, .card-handle')) {
+		  e.preventDefault();
+		}
+	  });
 	  
-	  const startY = e.touches[0].clientY;
-	  const element = e.target.closest('.app');
-	  
-	  if (element && element.scrollTop === 0 && startY > 10) {
-		// Prevent pull to refresh at top of scroll
-		document.addEventListener('touchmove', (moveEvent) => {
-		  if (moveEvent.touches[0].clientY > startY) {
-			moveEvent.preventDefault();
-		  }
-		}, { passive: false, once: true });
-	  }
-	});
-	
-	// Prevent context menu on long press (for gesture elements)
-	document.addEventListener('contextmenu', (e) => {
-	  if (e.target.closest('.task-card, .subtask, .sub-handle, .card-handle')) {
-		e.preventDefault();
-	  }
-	});
-	
-	// Prevent image drag
-	document.addEventListener('dragstart', (e) => {
-	  if (e.target.tagName === 'IMG') {
-		e.preventDefault();
-	  }
-	});
+	  // Prevent image drag
+	  document.addEventListener('dragstart', (e) => {
+		if (e.target.tagName === 'IMG') {
+		  e.preventDefault();
+		}
+	  });
+	} catch (error) {
+	  console.warn('Failed to prevent unwanted behaviors:', error);
+	}
   }
 
   // Fix 8: Memory management
   setupMemoryManagement() {
 	console.log('🧠 Setting up memory management...');
 	
-	let memoryCheckTimer;
-	
-	const checkMemory = () => {
-	  if (performance.memory) {
-		const used = performance.memory.usedJSHeapSize;
-		const total = performance.memory.totalJSHeapSize;
-		const usage = used / total;
-		
-		if (usage > 0.8) {
-		  console.warn('⚠️ High memory usage detected:', (usage * 100).toFixed(1) + '%');
+	try {
+	  let memoryCheckTimer;
+	  
+	  const checkMemory = () => {
+		if (performance.memory) {
+		  const used = performance.memory.usedJSHeapSize;
+		  const total = performance.memory.totalJSHeapSize;
+		  const usage = used / total;
+		  
+		  if (usage > 0.8) {
+			console.warn('⚠️ High memory usage detected:', (usage * 100).toFixed(1) + '%');
+			this.triggerMemoryCleanup();
+		  }
+		}
+	  };
+	  
+	  // Check memory every 30 seconds
+	  memoryCheckTimer = setInterval(checkMemory, 30000);
+	  
+	  // Cleanup on page hide
+	  document.addEventListener('visibilitychange', () => {
+		if (document.hidden) {
 		  this.triggerMemoryCleanup();
 		}
-	  }
-	};
-	
-	// Check memory every 30 seconds
-	memoryCheckTimer = setInterval(checkMemory, 30000);
-	
-	// Cleanup on page hide
-	document.addEventListener('visibilitychange', () => {
-	  if (document.hidden) {
-		this.triggerMemoryCleanup();
-	  }
-	});
-	
-	// Store timer for cleanup
-	this.memoryCheckTimer = memoryCheckTimer;
+	  });
+	  
+	  // Store timer for cleanup
+	  this.memoryCheckTimer = memoryCheckTimer;
+	} catch (error) {
+	  console.warn('Failed to setup memory management:', error);
+	}
   }
 
   triggerMemoryCleanup() {
-	// Create memory pressure to encourage garbage collection
-	const temp = [];
-	for (let i = 0; i < 1000; i++) {
-	  temp.push(new Array(100).fill(Math.random()));
+	try {
+	  // Create memory pressure to encourage garbage collection
+	  const temp = [];
+	  for (let i = 0; i < 1000; i++) {
+		temp.push(new Array(100).fill(Math.random()));
+	  }
+	  temp.length = 0;
+	  
+	  // Force GC if available
+	  if (window.gc) {
+		window.gc();
+	  }
+	  
+	  console.log('🗑️ Memory cleanup triggered');
+	} catch (error) {
+	  console.warn('Memory cleanup failed:', error);
 	}
-	temp.length = 0;
-	
-	// Force GC if available
-	if (window.gc) {
-	  window.gc();
-	}
-	
-	console.log('🗑️ Memory cleanup triggered');
   }
 
   // Fix 9: Add iOS-specific CSS
   addIOSSpecificCSS() {
-	const style = document.createElement('style');
-	style.id = 'ios-fixes';
-	style.textContent = this.getIOSCSS();
-	document.head.appendChild(style);
+	try {
+	  const style = document.createElement('style');
+	  style.id = 'ios-fixes';
+	  style.textContent = this.getIOSCSS();
+	  document.head.appendChild(style);
+	} catch (error) {
+	  console.warn('Failed to add iOS CSS:', error);
+	}
   }
 
   getIOSCSS() {
@@ -474,7 +490,6 @@ export class iOSManager {
 		  --safe-left: ${this.safeAreas.left}px;
 		}
 		
-		/* Viewport fixes */
 		html, body {
 		  height: calc(var(--vh, 1vh) * 100);
 		  overflow-x: hidden;
@@ -493,7 +508,6 @@ export class iOSManager {
 		  overscroll-behavior: contain;
 		}
 		
-		/* Safe area support */
 		.topbar {
 		  padding-top: max(var(--space-sm, 8px), var(--safe-top, env(safe-area-inset-top)));
 		}
@@ -502,71 +516,38 @@ export class iOSManager {
 		  padding-bottom: calc(var(--space-md, 12px) + var(--safe-bottom, env(safe-area-inset-bottom)));
 		}
 		
-		/* Input fixes */
 		input, textarea, select {
 		  font-size: max(16px, 1em);
 		  -webkit-user-select: text;
 		  user-select: text;
 		}
 		
-		/* Touch optimizations */
 		.task-card, .subtask {
 		  -webkit-user-select: none;
 		  user-select: none;
 		  -webkit-touch-callout: none;
-		}
-		
-		/* Animation optimizations */
-		.task-card, .subtask, .drag-ghost {
 		  -webkit-transform: translateZ(0);
 		  transform: translateZ(0);
 		  -webkit-backface-visibility: hidden;
 		  backface-visibility: hidden;
 		}
 		
-		/* Gesture area improvements */
 		.sub-handle, .card-handle {
 		  touch-action: none;
 		  -webkit-user-drag: none;
 		}
-		
-		/* Prevent unwanted selections */
-		.swipe-wrap, .card-swipe-wrap {
-		  -webkit-user-select: none;
-		  user-select: none;
-		}
-		
-		/* Scrolling improvements */
-		.subtask-list {
-		  -webkit-overflow-scrolling: touch;
-		}
 	  }
 	  
-	  /* iPhone X+ specific styles */
 	  .has-notch .topbar {
-		padding-top: max(16px, var(--safe-top, env(safe-area-inset-top)));
-	  }
-	  
-	  .has-notch .add-bar {
-		padding-bottom: calc(16px + var(--safe-bottom, env(safe-area-inset-bottom)));
-	  }
-	  
-	  /* Dynamic Island specific styles */
-	  .has-dynamic-island .topbar {
 		padding-top: max(20px, var(--safe-top, env(safe-area-inset-top)));
 	  }
 	  
-	  /* Standalone app styles */
-	  .standalone-app {
-		/* Additional padding when running as PWA */
+	  .has-notch .add-bar {
+		padding-bottom: calc(20px + var(--safe-bottom, env(safe-area-inset-bottom)));
 	  }
 	  
-	  /* Reduced motion support */
-	  @media (prefers-reduced-motion: reduce) {
-		.task-card, .subtask {
-		  transition: none !important;
-		  animation: none !important;
-		}
+	  .has-dynamic-island .topbar {
+		padding-top: max(24px, var(--safe-top, env(safe-area-inset-top)));
 	  }
 	`;
   }
@@ -597,18 +578,22 @@ export class iOSManager {
   destroy() {
 	console.log('🧹 Cleaning up iOS fixes...');
 	
-	if (this.memoryCheckTimer) {
-	  clearInterval(this.memoryCheckTimer);
-	}
-	
-	if (this.animationObserver) {
-	  this.animationObserver.disconnect();
-	}
-	
-	// Remove iOS-specific styles
-	const style = document.getElementById('ios-fixes');
-	if (style) {
-	  style.remove();
+	try {
+	  if (this.memoryCheckTimer) {
+		clearInterval(this.memoryCheckTimer);
+	  }
+	  
+	  if (this.animationObserver) {
+		this.animationObserver.disconnect();
+	  }
+	  
+	  // Remove iOS-specific styles
+	  const style = document.getElementById('ios-fixes');
+	  if (style) {
+		style.remove();
+	  }
+	} catch (error) {
+	  console.warn('Cleanup failed:', error);
 	}
   }
 
