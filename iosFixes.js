@@ -201,20 +201,45 @@ export class iOSManager {
 	  // Enable momentum scrolling globally
 	  document.body.style.webkitOverflowScrolling = 'touch';
 	  
-	  // REMOVE these lines that prevent all touchmove:
-	  // document.addEventListener('touchmove', (e) => {
-	  //   const scrollableParent = e.target.closest('.app, .scrollable, [data-scrollable]');
-	  //   if (!scrollableParent) {
-	  //     e.preventDefault();
-	  //     return;
-	  //   }
-	  // }, { passive: false });
+	  // Prevent document scrolling when not needed
+	  let lastTouchY = 0;
 	  
-	  // Only prevent overscroll behavior, not normal scrolling
+	  document.addEventListener('touchstart', (e) => {
+		lastTouchY = e.touches[0].clientY;
+	  }, { passive: true });
+	  
+	  document.addEventListener('touchmove', (e) => {
+		try {
+		  const currentY = e.touches[0].clientY;
+		  const deltaY = lastTouchY - currentY;
+		  
+		  // Find scrollable parent
+		  const scrollableParent = e.target.closest('.app, .scrollable, [data-scrollable]');
+		  
+		  if (!scrollableParent) {
+			// No scrollable parent, prevent default
+			e.preventDefault();
+			return;
+		  }
+		  
+		  // Check if at scroll boundaries
+		  const { scrollTop, scrollHeight, clientHeight } = scrollableParent;
+		  const atTop = scrollTop === 0;
+		  const atBottom = scrollTop + clientHeight >= scrollHeight;
+		  
+		  // Prevent rubber band at boundaries
+		  if ((atTop && deltaY < 0) || (atBottom && deltaY > 0)) {
+			e.preventDefault();
+		  }
+		  
+		  lastTouchY = currentY;
+		} catch (error) {
+		  console.warn('Touch move error:', error);
+		}
+	  }, { passive: false });
+	  
+	  // Prevent overscroll
 	  document.body.style.overscrollBehavior = 'none';
-	  
-	  // Let the gesture systems handle scroll locking during gestures
-	  console.log('✅ Scroll behavior fixed - normal scrolling enabled');
 	} catch (error) {
 	  console.warn('Failed to fix scrolling:', error);
 	}

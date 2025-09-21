@@ -1,13 +1,7 @@
-// core.js – Updated with Gesture Coordinator integration
+// core.js – Reverted to original working state
 
-// Keep existing drag and swipe imports
 import { bindCrossSortContainer } from './drag.js';
 import { enableSwipe } from './swipe.js';
-
-// ADD gesture coordinator import
-import { initializeGestureCoordinator, gestureCoordinator } from './gestureCoordinator.js';
-
-// Keep all existing imports
 import { bindMenu } from './menu.js';
 import { debounce, safeExecute } from './utils.js';
 import { model, saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticUpdate } from './state.js';
@@ -39,28 +33,19 @@ let dragLayer = null;
 // shared gesture state (used by drag.js & swipe.js)
 export const gesture = { drag: false, swipe: false };
 
-// ===== UPDATED BEHAVIOR WIRING =====
+// ===== RESTORED ORIGINAL BEHAVIOR WIRING =====
 let crossBound = false;
 
+// RESTORE original bootBehaviors function:
 export function bootBehaviors(){
-  console.log('🚀 Starting bootBehaviors with Gesture Coordinator...');
   
-  // Initialize existing systems first
   if(!crossBound){ bindCrossSortContainer(); crossBound = true; }
   enableSwipe(); // This needs to run every time to rebind to new DOM elements
-  
-  // Keep existing bindings
+
   bindAdders();
   bindMenu();
   bindKeyboardShortcuts();
-  
-  // ADD: Initialize gesture coordinator after existing systems
-  initializeGestureCoordinator();
-  
-  console.log('✅ bootBehaviors completed with Gesture Coordinator');
 }
-
-// Keep all existing functions unchanged...
 
 function bindKeyboardShortcuts() {
   if (document._keyboardBound) return;
@@ -161,7 +146,7 @@ export function setDomRefs(){
   setApp(app);
 }
 
-// UPDATED cleanup function
+// RESTORE original cleanup function
 export function cleanup() {
   console.log('🧹 Starting cleanup...');
   
@@ -174,12 +159,7 @@ export function cleanup() {
   if (window._resizeTimer) {
     clearTimeout(window._resizeTimer);
   }
-  
-  // ADD: Clean up gesture coordinator
-  if (gestureCoordinator) {
-    gestureCoordinator.destroy();
-  }
-  
+
   // Reset gesture state (keep for compatibility with old code)
   gesture.drag = false;
   gesture.swipe = false;

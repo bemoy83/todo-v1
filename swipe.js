@@ -1,9 +1,4 @@
-// swipe.js - Updated with Gesture Coordinator integration
-
-// ADD this import at the top (after existing imports):
-import { gestureCoordinator } from './gestureCoordinator.js';
-
-// Keep all existing imports:
+// swipe.js - Simplified with CSS extracted
 import { pt, clamp, FLAGS, gesture } from './core.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations } from './taskOperations.js';
@@ -83,25 +78,24 @@ function attachTaskSwipe(wrap) {
 }
 
 function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
-if (!row || !actions || !leftZone || !rightZone) return;
+  if (!row || !actions || !leftZone || !rightZone) return;
+  
+  // Gesture state - MUCH cleaner with constants
+  let startX = 0, startY = 0, currentX = 0;
+  let openX = 0;
+  let tracking = false, captured = false;
+  let holdTimer = null, isHolding = false;
+  let scrollYAtStart = 0;
+  let unlockScroll = null;
+  let velocityTracker = [];
 
-// Gesture state - MUCH cleaner with constants
-let startX = 0, startY = 0, currentX = 0;
-let openX = 0;
-let tracking = false, captured = false;
-let holdTimer = null, isHolding = false;
-let scrollYAtStart = 0;
-let unlockScroll = null;
-let velocityTracker = [];
-
-// NEW: Get dynamic distances from coordinator
-const distances = gestureCoordinator.getSwipeDistances(wrap);
-const getLeftRevealDistance = () => distances.left;
-const getRightRevealDistance = () => distances.right;
-
-const setTransform = (x) => row.style.transform = `translate3d(${Math.round(x)}px,0,0)`;
-// REMOVE: const haptic = () => navigator.vibrate?.(FEEDBACK.HAPTIC_MEDIUM || 8);
-const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Helper functions using constants
+  // NEW: Helper functions for reveal distances
+  const getLeftRevealDistance = () => SWIPE.LEFT_REVEAL_DISTANCE || 80;
+  const getRightRevealDistance = () => SWIPE.RIGHT_REVEAL_DISTANCE || 120;
+  const setTransform = (x) => row.style.transform = `translate3d(${Math.round(x)}px,0,0)`;
+  const haptic = () => navigator.vibrate?.(FEEDBACK.HAPTIC_MEDIUM || 8);
+  const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Velocity tracking
   function trackVelocity(x, time) {
@@ -140,22 +134,17 @@ const prefersReducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)'
   }
 
   function cleanup() {
-    gesture.swipe = false;
+    gesture.swipe = false;  // ← Make sure this is always reset
     tracking = false;
     captured = false;
     clearHoldTimer();
     isHolding = false;
     unlockScroll?.();
     
-    // CRITICAL: Always notify coordinator if gesture was started
-    if (gestureCoordinator.activeGestures.swipe) {
-      gestureCoordinator.onSwipeEnd(type, false);
-    }
-    
     // Clear velocity tracker
     velocityTracker = [];
     
-    // Remove event listeners
+    // Remove any remaining event listeners
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
   }
@@ -188,8 +177,7 @@ function reset() {
         isHolding = true;
         wrap.classList.add('held');
         wrap.style.setProperty('--hold-feedback', '1');
-        // NEW: Use coordinator for haptic
-        gestureCoordinator.triggerHaptic('activate', 'swipe', type);
+        haptic();
       }
     }, SWIPE.HOLD_MS);
   }
@@ -222,13 +210,7 @@ function reset() {
         e.target.closest('.sub-handle') || 
         e.target.closest('.card-handle') ||
         e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
-    
-    // Check with coordinator before starting
-    if (!gestureCoordinator.canStartGesture('swipe', type)) {
-      console.log(`🚫 ${type} swipe blocked by coordinator`);
-      return;
-    }
-    
+
     const p = pt(e);
     startX = p.x;
     startY = p.y;
@@ -237,9 +219,8 @@ function reset() {
     tracking = true;
     captured = false;
     isHolding = false;
-    // DON'T set gesture.swipe = true here yet
-    // DON'T call gestureCoordinator.onSwipeStart() here yet
-      
+    gesture.swipe = true;
+    
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
     wrap.classList.add('swiping');
     
@@ -258,79 +239,52 @@ function reset() {
     const now = performance.now();
     
     currentX = p.x;
-  
+
     if (!captured) {
       const scrolled = Math.abs(((document.scrollingElement || document.documentElement).scrollTop || 0) - scrollYAtStart) > 2;
       
       if (Math.abs(dy) > SWIPE.VERTICAL_GUARD || scrolled) {
-        cleanup(); // This will properly clean up without starting gesture
+        cleanup();
         return;
       }
       
       if (Math.abs(dx) >= SWIPE.MIN_INTENT_DISTANCE) {
-        // NOW we actually start the gesture
-        if (!gestureCoordinator.onSwipeStart(type)) {
-          console.log(`🚫 Failed to start ${type} swipe with coordinator`);
-          cleanup();
-          return;
-        }
-        
         captured = true;
-        gesture.swipe = true; // Set this AFTER coordinator confirms
         lockScroll();
         e.preventDefault();
-        
-        gestureCoordinator.onSwipeActivate(type);
         startHoldTimer();
       } else {
         return;
       }
     }
-  
+
     e.preventDefault();
     trackVelocity(p.x, now);
     
     const newX = applyResistance(openX + dx);
     setTransform(newX);
     updateVisuals(newX);
-    
-    // Threshold haptic logic remains the same
-    const distance = Math.abs(newX);
-    const threshold = newX > 0 ? getLeftRevealDistance() * 0.8 : getRightRevealDistance() * 0.8;
-    
-    if (!wrap._thresholdCrossed && distance > threshold) {
-      gestureCoordinator.onSwipeThreshold(type);
-      wrap._thresholdCrossed = true;
-    } else if (wrap._thresholdCrossed && distance < 20) {
-      wrap._thresholdCrossed = false;
-    }
   }
-  
+
   function onUp() {
     window.removeEventListener('pointermove', onMove);
     tracking = false;
     clearHoldTimer();
     
     if (!captured) {
-      // Gesture never really started, just clean up locally
-      cleanup(); // This won't call coordinator since gesture.swipe is false
+      cleanup();
       return;
     }
     
     const dx = currentX - startX;
-    let success = false;
     
     if (isFling()) {
-      success = true;
       if (dx > 0) {
         executeAction(type === 'task' ? 'complete-all' : 'complete', leftZone);
       } else {
         executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
       }
-      
-      gestureCoordinator.onSwipeEnd(type, success);
-      cleanup(); // Clean up after notifying coordinator
-      return;
+      return; // ← Important: return early, don't continue
     }
     
     if (isHolding) {
@@ -339,13 +293,7 @@ function reset() {
       openX = targetX;
       updateVisuals(targetX);
       wrap.style.removeProperty('--hold-feedback');
-      
-      // Don't end the gesture, just clean up tracking
-      gesture.swipe = false;
-      captured = false;
-      unlockScroll?.();
-      
-      // Keep coordinator gesture active for drawer state
+      cleanup(); // ← Clean up immediately for hold actions
       return;
     }
     
@@ -355,30 +303,32 @@ function reset() {
       (getRightRevealDistance() * 0.6);
     
     if (distance >= threshold) {
-      success = true;
       if (dx > 0) {
         executeAction(type === 'task' ? 'complete-all' : 'complete', leftZone);
       } else {
         executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
       }
-    } else {
-      // Normal snap back
-      animateTo(0);
-      openX = 0;
-      updateVisuals(0);
+      return; // ← Important: return early
     }
     
-    gestureCoordinator.onSwipeEnd(type, success);
-    cleanup(); // Clean up after notifying coordinator
+    // Normal snap back
+    animateTo(0);
+    openX = 0;
+    updateVisuals(0);
+    cleanup(); // ← Clean up for normal snap back
   }
 
   function executeAction(actionName, zone) {
-    // NEW: Use coordinator for haptics instead of direct haptic()
-    gestureCoordinator.triggerActionHaptic(actionName);
-    
+    haptic();
     pulseZone(zone);
+    
+    // Perform the action first
     performAction(actionName);
+    
+    // Then handle the animation and cleanup
     afterExecute(actionName.includes('complete') ? 'right' : 'left');
+    
+    // Don't call cleanup() here - let afterExecute handle it
   }
 
   function animateTo(targetX) {
@@ -489,4 +439,3 @@ function reset() {
     if (!wrap.contains(e.target)) closeDrawer();
   });
 }
-console.log('👆 Swipe system updated with gesture coordinator integration');

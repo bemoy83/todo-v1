@@ -29,23 +29,6 @@ export function renderAll(){
 	if(layer) app.appendChild(layer);
 	saveModel();
 	
-	// REMOVE all this gesture re-enabling code:
-	// setTimeout(() => {
-	//   console.log('🔄 Re-enabling gestures after render...');
-	//   
-	//   import('./gestureManager.js').then(({ enableGestures }) => {
-	//     enableGestures();
-	//     console.log('✅ Gestures re-enabled');
-	//     
-	//     const taskCards = document.querySelectorAll('.task-card').length;
-	//     const swipeWraps = document.querySelectorAll('.swipe-wrap, .card-swipe-wrap').length;
-	//     console.log(`📊 Gestures set up for ${taskCards} task cards and ${swipeWraps} swipe elements`);
-	//   }).catch(error => {
-	//     console.error('❌ Failed to re-enable gestures:', error);
-	//   });
-	//   
-	// }, 10);
-	
 	console.log('✅ renderAll completed');
 	
   }, () => {

@@ -152,7 +152,3 @@ function ensureMenuStructure(){
     document.body.appendChild(input);
   }
 }
-
-// CSS injection functions REMOVED - styles are now in styles.css
-// injectTopbarStyles() - DELETED
-// injectMenuStyles() - DELETED
