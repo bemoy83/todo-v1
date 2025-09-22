@@ -1,14 +1,14 @@
-// core.js – Updated to use new store-based rendering
+// core.js – Updated to use gesture state machine
 
 import { bindCrossSortContainer } from './drag.js';
 import { enableSwipe } from './swipe.js';
 import { bindMenu } from './menu.js';
 import { debounce, safeExecute } from './utils.js';
 import { model, saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticUpdate } from './state.js';
-import { setApp } from './rendering.js'; // ← Changed to new rendering
-// Remove the old import: import { renderAll } from './rendering.js';
+import { setApp } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
-import { TaskOperations, focusSubtaskInput } from './taskOperations.js'; // ← Changed to new operations
+import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
+import { gestureManager } from './gestureManager.js'; // ← New import
 
 // ===== Helpers (unchanged) =====
 export const $  = (s, root=document) => root.querySelector(s);
@@ -27,20 +27,21 @@ const DEV = false;
 export function log(){ if(DEV) try{ console.log('[todo]', ...arguments); }catch{} }
 export function guard(fn){ return function guarded(){ try { return fn.apply(this, arguments); } catch(e){ if(DEV) console.error(e); } }; }
 
-// ---- Module state (unchanged) ----
+// ---- Module state - UPDATED ----
 let app = null;
 let dragLayer = null;
-// shared gesture state (used by drag.js & swipe.js)
-export const gesture = { drag: false, swipe: false };
 
-// ===== UPDATED BEHAVIOR WIRING =====
+// REPLACED: Old gesture flags with gesture manager
+// export const gesture = { drag: false, swipe: false }; // ← Remove this
+export { gestureManager }; // ← Export gesture manager instead
+
+// ===== BEHAVIOR WIRING =====
 let crossBound = false;
 
-// UPDATED bootBehaviors function - no manual renderAll calls needed!
 export function bootBehaviors(){
   
   if(!crossBound){ bindCrossSortContainer(); crossBound = true; }
-  enableSwipe(); // This needs to run every time to rebind to new DOM elements
+  enableSwipe();
 
   bindAdders();
   bindMenu();
@@ -62,15 +63,19 @@ function bindKeyboardShortcuts() {
           break;
         case 's':
           e.preventDefault();
-          // Force save - store handles this automatically now
           console.log('Save shortcut - store persists automatically');
+          break;
+        case 'g': // NEW: Toggle gesture debug
+          e.preventDefault();
+          window.toggleGestureDebug?.();
           break;
       }
     }
     
-    // Escape to clear focus
+    // Escape to clear focus and cancel any active gesture
     if (e.key === 'Escape') {
       document.activeElement?.blur();
+      gestureManager.cancel('escape_key'); // ← NEW: Cancel gestures on escape
     }
   });
   
@@ -78,7 +83,7 @@ function bindKeyboardShortcuts() {
 }
 
 function bindAdders(){
-  // Main add bar - UPDATED to use new TaskOperations
+  // Main add bar
   const form = document.getElementById('addMainForm');
   if(form && !form._bound){
     form.addEventListener('submit', async (e)=>{
@@ -88,23 +93,20 @@ function bindAdders(){
       if(!title) return;
       
       try {
-        // Use new TaskOperations - store will handle rendering automatically
         const task = await TaskOperations.task.create(title);
         inp.value = '';
         
-        // Auto-focus the newly created task's subtask input for rapid entry
         if (task) {
           focusSubtaskInput(task.id);
         }
       } catch (error) {
         console.error('Failed to create task:', error);
-        // Optionally show user feedback
       }
     });
     form._bound = true;
   }
   
-  // Delegate for per-card subtask add - UPDATED to use new TaskOperations
+  // Delegate for per-card subtask add
   app?.addEventListener('submit', function(e){
     const f = e.target.closest('.add-subtask-form');
     if(!f) return;
@@ -115,12 +117,9 @@ function bindAdders(){
     const text = (input.value || '').trim();
     if(!text) return;
     
-    // Use new TaskOperations - store will handle rendering automatically
     TaskOperations.subtask.create(mainId, text).then(() => {
-      // Clear input after successful creation
       input.value = '';
       
-      // Restore focus to the same input after re-render for rapid entry
       setTimeout(() => {
         const taskCard = document.querySelector('.task-card[data-id="' + mainId + '"]');
         const subtaskInput = taskCard?.querySelector('.add-sub-input');
@@ -130,7 +129,6 @@ function bindAdders(){
       }, 50);
     }).catch(error => {
       console.error('Failed to create subtask:', error);
-      // Optionally show user feedback
     });
   }, { once: false });
 }
@@ -142,7 +140,6 @@ export function clamp(n, min, max){ return Math.min(max, Math.max(min, n)); }
 export function setDomRefs(){
   app = document.getElementById('app');
   dragLayer = document.getElementById('dragLayer');
-  // Pass app to NEW rendering module - this will set up store subscription
   setApp(app);
 }
 
@@ -160,17 +157,13 @@ export function cleanup() {
     clearTimeout(window._resizeTimer);
   }
 
-  // Reset gesture state (keep for compatibility with old code)
-  gesture.drag = false;
-  gesture.swipe = false;
+  // NEW: Cancel any active gestures
+  gestureManager.cancel('cleanup');
   
-  // Clean up new rendering subscription
+  // Clean up rendering subscription
   import('./rendering.js').then(({ cleanup: cleanupRendering }) => {
     cleanupRendering();
   });
   
   console.log('✅ Cleanup completed');
 }
-
-// NO LONGER EXPORT renderAll - the new system handles this automatically
-// export { renderAll } from './rendering.js'; // ← Remove this line

@@ -1,8 +1,7 @@
 // main.js - Updated for event-driven system
 
 import { setDomRefs, bootBehaviors, cleanup } from './core.js';
-// REMOVED: import { renderAll } from './rendering.js'; 
-// The new system handles rendering automatically via store subscriptions
+import { gestureManager } from './gestureManager.js';
 import './drag.js';
 import './swipe.js';
 import './menu.js';
@@ -50,10 +49,19 @@ document.addEventListener('DOMContentLoaded', () => {
               console.log('Redid last action');
             }
           });
-        }
+        } else if (e.key === 'g') {
+          e.preventDefault();
+          // Toggle gesture debug mode
+          window.toggleGestureDebug?.();
+        } else if (e.key === 'i') {
+          e.preventDefault();
+          // Show gesture info
+          import('./gestureManager.js').then(({ gestureManager }) => {
+            console.log('🎯 Gesture State:', gestureManager.getStateInfo());
+        });
       }
-    });
-    
+    }
+  });
   } catch (error) {
     console.error('App initialization failed:', error);
     // Show fallback UI
@@ -71,3 +79,16 @@ window.addEventListener('beforeunload', () => {
 });
 
 console.log('📱 Event-driven app loaded successfully');
+
+if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  gestureManager.enableDebug();
+  console.log('🎯 Gesture debug mode enabled for development');
+  
+  // Add gesture state listener for debugging
+  gestureManager.addEventListener('statechange', (e) => {
+    const { oldState, newState, event, gestureType } = e.detail;
+    if (gestureManager.debugMode) {
+      console.log(`🎯 ${oldState} → ${newState} (${event}) [${gestureType || 'none'}]`);
+    }
+  });
+}

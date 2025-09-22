@@ -1,5 +1,6 @@
 // swipe.js - Simplified with CSS extracted
-import { pt, clamp, FLAGS, gesture } from './core.js';
+import { pt, clamp, FLAGS, gestureManager } from './core.js';
+import { GestureTypes, GestureEvents } from './gestureManager.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations } from './taskOperations.js';
 import { SWIPE, FEEDBACK, TIMING } from './constants.js';
@@ -134,17 +135,28 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   }
 
   function cleanup() {
-    gesture.swipe = false;  // ← Make sure this is always reset
+    // Reset gesture state
+    const currentGesture = gestureManager.getCurrentGesture();
+    const currentState = gestureManager.state;
+    
+    if (currentGesture === GestureTypes.SWIPE_TASK || currentGesture === GestureTypes.SWIPE_SUBTASK) {
+      // Only transition if we're not already idle
+      if (currentState !== 'idle') {
+        if (gestureManager.isFinishing()) {
+          gestureManager.complete();
+        } else {
+          gestureManager.cancel('cleanup');
+        }
+      }
+    }
+    
     tracking = false;
     captured = false;
     clearHoldTimer();
     isHolding = false;
     unlockScroll?.();
-    
-    // Clear velocity tracker
     velocityTracker = [];
     
-    // Remove any remaining event listeners
     window.removeEventListener('pointermove', onMove);
     window.removeEventListener('pointerup', onUp);
   }
@@ -206,11 +218,13 @@ function reset() {
 
   // Event handlers - much cleaner now
   function onDown(e) {
-    if (gesture.drag || gesture.swipe || 
+    const gestureType = type === 'task' ? GestureTypes.SWIPE_TASK : GestureTypes.SWIPE_SUBTASK;
+    
+    if (!gestureManager.canStart(gestureType) || 
         e.target.closest('.sub-handle') || 
         e.target.closest('.card-handle') ||
         e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
-
+  
     const p = pt(e);
     startX = p.x;
     startY = p.y;
@@ -219,7 +233,13 @@ function reset() {
     tracking = true;
     captured = false;
     isHolding = false;
-    gesture.swipe = true;
+    
+    // Transition to armed state
+    gestureManager.transition(GestureEvents.POINTER_DOWN, gestureType, {
+      element: row,
+      startPoint: p,
+      swipeType: type
+    });
     
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
     wrap.classList.add('swiping');
@@ -252,6 +272,11 @@ function reset() {
         captured = true;
         lockScroll();
         e.preventDefault();
+        
+        // Transition to swiping state
+        const gestureType = type === 'task' ? GestureTypes.SWIPE_TASK : GestureTypes.SWIPE_SUBTASK;
+        gestureManager.transition(GestureEvents.MOVEMENT_DETECTED, gestureType);
+        
         startHoldTimer();
       } else {
         return;
@@ -272,6 +297,7 @@ function reset() {
     clearHoldTimer();
     
     if (!captured) {
+      gestureManager.transition(GestureEvents.CANCEL);
       cleanup();
       return;
     }
@@ -284,7 +310,7 @@ function reset() {
       } else {
         executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
       }
-      return; // ← Important: return early, don't continue
+      return;
     }
     
     if (isHolding) {
@@ -293,7 +319,17 @@ function reset() {
       openX = targetX;
       updateVisuals(targetX);
       wrap.style.removeProperty('--hold-feedback');
-      cleanup(); // ← Clean up immediately for hold actions
+      
+      // Transition and complete for hold gestures
+      gestureManager.transition(GestureEvents.POINTER_UP);
+      gestureManager.complete();
+      
+      // Manual cleanup for hold case
+      tracking = false;
+      captured = false;
+      isHolding = false;
+      unlockScroll?.();
+      velocityTracker = [];
       return;
     }
     
@@ -308,14 +344,16 @@ function reset() {
       } else {
         executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
       }
-      return; // ← Important: return early
+      return;
     }
     
-    // Normal snap back
+    // Normal snap back - Let cleanup() handle the state machine
     animateTo(0);
     openX = 0;
     updateVisuals(0);
-    cleanup(); // ← Clean up for normal snap back
+    
+    gestureManager.transition(GestureEvents.POINTER_UP);
+    cleanup(); // This will call gestureManager.complete() through the isFinishing() check
   }
 
   function executeAction(actionName, zone) {
