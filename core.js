@@ -8,7 +8,7 @@ import { model, saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticU
 import { setApp } from './rendering.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
-import { gestureManager } from './gestureManager.js'; // ← New import
+import { gestureCoordinator } from './gestureCoordinator.js';
 
 // ===== Helpers (unchanged) =====
 export const $  = (s, root=document) => root.querySelector(s);
@@ -31,9 +31,8 @@ export function guard(fn){ return function guarded(){ try { return fn.apply(this
 let app = null;
 let dragLayer = null;
 
-// REPLACED: Old gesture flags with gesture manager
-// export const gesture = { drag: false, swipe: false }; // ← Remove this
-export { gestureManager }; // ← Export gesture manager instead
+export { gestureCoordinator as gesture };
+
 
 // ===== BEHAVIOR WIRING =====
 let crossBound = false;
@@ -72,10 +71,14 @@ function bindKeyboardShortcuts() {
       }
     }
     
-    // Escape to clear focus and cancel any active gesture
+    // REPLACE this escape key handler:
     if (e.key === 'Escape') {
       document.activeElement?.blur();
-      gestureManager.cancel('escape_key'); // ← NEW: Cancel gestures on escape
+      // OLD LINE (remove this):
+      // gestureManager.cancel('escape_key');
+      
+      // NEW LINE (add this):
+      gestureCoordinator.cancel('escape_key');
     }
   });
   
@@ -143,7 +146,7 @@ export function setDomRefs(){
   setApp(app);
 }
 
-// UPDATED cleanup function
+// 4. UPDATE the cleanup function - REPLACE the gesture cancellation:
 export function cleanup() {
   console.log('🧹 Starting cleanup...');
   
@@ -157,8 +160,7 @@ export function cleanup() {
     clearTimeout(window._resizeTimer);
   }
 
-  // NEW: Cancel any active gestures
-  gestureManager.cancel('cleanup');
+  gestureCoordinator.forceReset('cleanup');
   
   // Clean up rendering subscription
   import('./rendering.js').then(({ cleanup: cleanupRendering }) => {

@@ -92,3 +92,73 @@ if (window.location.hostname === 'localhost' || window.location.hostname === '12
     }
   });
 }
+// main.js - ADD this test code temporarily (after your existing code)
+
+// main.js - ADD this test code temporarily (after your existing code)
+
+// TEMPORARY TEST CODE - Add this to test the gesture system
+document.addEventListener('DOMContentLoaded', () => {
+  try {
+    console.log('📱 App starting with simplified gesture system...');
+    
+    // Import and test gesture coordinator
+    import('./gestureCoordinator.js').then(({ gestureCoordinator }) => {
+      console.log('✅ Gesture coordinator loaded');
+      
+      // Enable debug mode in development
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        gestureCoordinator.enableDebug();
+        console.log('🐛 Debug mode enabled');
+      }
+      
+      // Log gesture events for debugging
+      ['start', 'activate', 'complete', 'cancel', 'reset'].forEach(eventName => {
+        gestureCoordinator.addEventListener(eventName, (e) => {
+          console.log(`🎯 GESTURE ${eventName.toUpperCase()}:`, e.detail);
+        });
+      });
+      
+      // Monitor for stuck gestures
+      setInterval(() => {
+        const state = gestureCoordinator.getState();
+        if (state.state !== 'idle' && state.duration > 3000) {
+          console.warn('⚠️ Long-running gesture detected:', state);
+        }
+      }, 2000);
+      
+      // Test gesture conflict prevention
+      window.testGestureConflict = () => {
+        console.log('Testing gesture conflict prevention...');
+        const result1 = gestureCoordinator.start('drag-subtask', document.body);
+        console.log('First gesture start:', result1);
+        const result2 = gestureCoordinator.start('swipe-task', document.body);
+        console.log('Second gesture start (should fail):', result2);
+        gestureCoordinator.forceReset('test');
+      };
+      
+      console.log('🧪 Test functions available:');
+      console.log('- window.testGestureConflict()');
+      console.log('- Ctrl+Shift+G to toggle debug');
+      console.log('- Ctrl+Shift+R to force reset');
+      console.log('- Ctrl+Shift+S to show state');
+    });
+    
+    // Set up DOM refs - this will trigger initial render via store subscription
+    setDomRefs();
+    
+    // Boot behaviors - gesture system, menu, etc.
+    bootBehaviors();
+
+    console.log('✅ Simplified gesture app initialized successfully');
+    
+  } catch (error) {
+    console.error('App initialization failed:', error);
+    // Show fallback UI
+    const app = document.getElementById('app');
+    if (app) {
+      app.innerHTML = '<div class="empty">App failed to load. Please refresh the page.</div>';
+    }
+  }
+});
+
+// REMOVE this temporary test code after confirming everything works

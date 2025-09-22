@@ -1,6 +1,6 @@
-// swipe.js - Simplified with CSS extracted
-import { pt, clamp, FLAGS, gestureManager } from './core.js';
-import { GestureTypes, GestureEvents } from './gestureManager.js';
+// swipe.js - Updated for gesture coordinator system
+import { pt, clamp, FLAGS } from './core.js';
+import { gestureCoordinator, createGestureHandler } from './gestureCoordinator.js';
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations } from './taskOperations.js';
 import { SWIPE, FEEDBACK, TIMING } from './constants.js';
@@ -8,8 +8,6 @@ import { throttle } from './utils.js';
 
 export function enableSwipe() {
   if (!FLAGS.swipeGestures) return;
-  
-  // NO MORE CSS INJECTION! It's all in styles.css now
   
   // Re-query DOM elements every time this is called (after re-renders)
   const subtaskWraps = document.querySelectorAll('.swipe-wrap');
@@ -81,7 +79,11 @@ function attachTaskSwipe(wrap) {
 function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   if (!row || !actions || !leftZone || !rightZone) return;
   
-  // Gesture state - MUCH cleaner with constants
+  // Create gesture handler
+  const gestureType = type === 'task' ? 'swipe-task' : 'swipe-subtask';
+  const swipeHandler = createGestureHandler(gestureCoordinator, gestureType);
+  
+  // Swipe state variables
   let startX = 0, startY = 0, currentX = 0;
   let openX = 0;
   let tracking = false, captured = false;
@@ -90,8 +92,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   let unlockScroll = null;
   let velocityTracker = [];
 
-  // Helper functions using constants
-  // NEW: Helper functions for reveal distances
+  // Helper functions
   const getLeftRevealDistance = () => SWIPE.LEFT_REVEAL_DISTANCE || 80;
   const getRightRevealDistance = () => SWIPE.RIGHT_REVEAL_DISTANCE || 120;
   const setTransform = (x) => row.style.transform = `translate3d(${Math.round(x)}px,0,0)`;
@@ -134,44 +135,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     };
   }
 
-  function cleanup() {
-    // Reset gesture state
-    const currentGesture = gestureManager.getCurrentGesture();
-    const currentState = gestureManager.state;
-    
-    if (currentGesture === GestureTypes.SWIPE_TASK || currentGesture === GestureTypes.SWIPE_SUBTASK) {
-      // Only transition if we're not already idle
-      if (currentState !== 'idle') {
-        if (gestureManager.isFinishing()) {
-          gestureManager.complete();
-        } else {
-          gestureManager.cancel('cleanup');
-        }
-      }
-    }
-    
-    tracking = false;
-    captured = false;
-    clearHoldTimer();
-    isHolding = false;
-    unlockScroll?.();
-    velocityTracker = [];
-    
-    window.removeEventListener('pointermove', onMove);
-    window.removeEventListener('pointerup', onUp);
-  }
-
-function reset() {
-    openX = 0;
-    setTransform(0);
-    row.style.opacity = 1;
-    row.style.transition = ''; // ← Clear any lingering transitions
-    updateVisuals(0);
-    wrap.classList.remove('swiping', 'held');
-    wrap.style.removeProperty('--hold-feedback'); // ← Clear hold feedback
-    cleanup();
-  }
-
   function applyResistance(x) {
     // Use separate max distances for left and right
     const maxLeft = getLeftRevealDistance() * SWIPE.MAX_OVEREXTEND;
@@ -185,7 +148,7 @@ function reset() {
   function startHoldTimer() {
     clearHoldTimer();
     holdTimer = setTimeout(() => {
-      if (captured && tracking) {
+      if (captured && tracking && swipeHandler.isActive()) {
         isHolding = true;
         wrap.classList.add('held');
         wrap.style.setProperty('--hold-feedback', '1');
@@ -212,45 +175,52 @@ function reset() {
   }, 16);
 
   function pulseZone(zone) {
-    zone.style.setProperty('--pulse', SWIPE.PULSE_SCALE);
+    zone.style.setProperty('--pulse', SWIPE.PULSE_SCALE || 1.1);
     setTimeout(() => zone.style.setProperty('--pulse', '1'), 180);
   }
 
-  // Event handlers - much cleaner now
+  // Event handlers
   function onDown(e) {
-    const gestureType = type === 'task' ? GestureTypes.SWIPE_TASK : GestureTypes.SWIPE_SUBTASK;
-    
-    if (!gestureManager.canStart(gestureType) || 
-        e.target.closest('.sub-handle') || 
+    if (e.target.closest('.sub-handle') || 
         e.target.closest('.card-handle') ||
         e.target.closest('a,button,input,textarea,select,label,[contenteditable="true"]')) return;
-  
-    const p = pt(e);
-    startX = p.x;
-    startY = p.y;
-    currentX = p.x;
+
+    const startPoint = { x: e.clientX, y: e.clientY };
+    
+    // Try to start gesture
+    if (!swipeHandler.start(row, startPoint)) {
+      return; // Another gesture is active
+    }
+
+    startX = startPoint.x;
+    startY = startPoint.y;
+    currentX = startPoint.x;
     
     tracking = true;
     captured = false;
     isHolding = false;
     
-    // Transition to armed state
-    gestureManager.transition(GestureEvents.POINTER_DOWN, gestureType, {
-      element: row,
-      startPoint: p,
-      swipeType: type
-    });
-    
     scrollYAtStart = (document.scrollingElement || document.documentElement).scrollTop || 0;
     wrap.classList.add('swiping');
     
+    // Create named function references for proper cleanup
+    const handlePointerMove = (e) => onMove(e);
+    const handlePointerUp = () => onUp();
+    
+    // Register cleanup with coordinator
+    gestureCoordinator.onCleanup(() => {
+      cleanupSwipeState();
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    });
+    
     try { row.setPointerCapture?.(e.pointerId); } catch {}
-    window.addEventListener('pointermove', onMove, { passive: false });
-    window.addEventListener('pointerup', onUp, { once: true });
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerUp, { once: true });
   }
 
   function onMove(e) {
-    if (!tracking) return;
+    if (!swipeHandler.isActive()) return;
     
     const samples = e.getCoalescedEvents?.() || [e];
     const p = pt(samples[samples.length - 1]);
@@ -264,7 +234,7 @@ function reset() {
       const scrolled = Math.abs(((document.scrollingElement || document.documentElement).scrollTop || 0) - scrollYAtStart) > 2;
       
       if (Math.abs(dy) > SWIPE.VERTICAL_GUARD || scrolled) {
-        cleanup();
+        swipeHandler.cancel('vertical_scroll');
         return;
       }
       
@@ -273,11 +243,10 @@ function reset() {
         lockScroll();
         e.preventDefault();
         
-        // Transition to swiping state
-        const gestureType = type === 'task' ? GestureTypes.SWIPE_TASK : GestureTypes.SWIPE_SUBTASK;
-        gestureManager.transition(GestureEvents.MOVEMENT_DETECTED, gestureType);
-        
-        startHoldTimer();
+        // Activate the gesture
+        if (swipeHandler.activate()) {
+          startHoldTimer();
+        }
       } else {
         return;
       }
@@ -292,18 +261,19 @@ function reset() {
   }
 
   function onUp() {
-    window.removeEventListener('pointermove', onMove);
+    if (!swipeHandler.isActive()) return;
+    
     tracking = false;
     clearHoldTimer();
     
     if (!captured) {
-      gestureManager.transition(GestureEvents.CANCEL);
-      cleanup();
+      swipeHandler.cancel('no_capture');
       return;
     }
     
     const dx = currentX - startX;
     
+    // Check for fling gesture first (highest priority)
     if (isFling()) {
       if (dx > 0) {
         executeAction(type === 'task' ? 'complete-all' : 'complete', leftZone);
@@ -313,83 +283,166 @@ function reset() {
       return;
     }
     
-    if (isHolding) {
-      const targetX = dx > 0 ? getLeftRevealDistance() : -getRightRevealDistance();
-      animateTo(targetX);
-      openX = targetX;
-      updateVisuals(targetX);
-      wrap.style.removeProperty('--hold-feedback');
-      
-      // Transition and complete for hold gestures
-      gestureManager.transition(GestureEvents.POINTER_UP);
-      gestureManager.complete();
-      
-      // Manual cleanup for hold case
-      tracking = false;
-      captured = false;
-      isHolding = false;
-      unlockScroll?.();
-      velocityTracker = [];
-      return;
-    }
-    
+    // Check for hold-open threshold
     const distance = Math.abs(dx);
-    const threshold = dx > 0 ? 
-      (getLeftRevealDistance() * 0.6) :
-      (getRightRevealDistance() * 0.6);
+    const leftThreshold = getLeftRevealDistance() * 0.6;
+    const rightThreshold = getRightRevealDistance() * 0.6;
     
-    if (distance >= threshold) {
-      if (dx > 0) {
-        executeAction(type === 'task' ? 'complete-all' : 'complete', leftZone);
-      } else {
-        executeAction(type === 'task' ? 'delete-task' : 'delete', rightZone);
-      }
+    if (distance >= leftThreshold || distance >= rightThreshold) {
+      // Hold open - complete the gesture but keep drawer open
+      const targetX = dx > 0 ? getLeftRevealDistance() : -getRightRevealDistance();
+      holdOpen(targetX);
       return;
     }
     
-    // Normal snap back - Let cleanup() handle the state machine
+    // Snap back to closed
     animateTo(0);
     openX = 0;
     updateVisuals(0);
+    swipeHandler.complete();
+  }
+  
+  function holdOpen(targetX) {
+    openX = targetX;
     
-    gestureManager.transition(GestureEvents.POINTER_UP);
-    cleanup(); // This will call gestureManager.complete() through the isFinishing() check
+    // Set the transform immediately and mark as held-open
+    setTransform(targetX);
+    updateVisuals(targetX);
+    wrap.classList.add('held-open');
+    wrap.style.removeProperty('--hold-feedback');
+    
+    // Use a smooth animation to the final position
+    row.style.transition = `transform ${TIMING.NORMAL}ms ease`;
+    
+    // Ensure the position sticks after animation
+    setTimeout(() => {
+      row.style.transition = '';
+      setTransform(targetX);
+      console.log(`Drawer visually held at ${targetX}px, openX=${openX}`);
+    }, TIMING.NORMAL + 10);
+    
+    // Complete the gesture to prevent timeout
+    swipeHandler.complete();
+    
+    console.log(`Drawer held open at ${targetX}px - gesture completed`);
   }
 
+  // UPDATE executeAction to not try to complete an already completed gesture:
   function executeAction(actionName, zone) {
     haptic();
     pulseZone(zone);
     
-    // Perform the action first
+    // Only complete gesture if it's still active
+    if (swipeHandler.isActive()) {
+      swipeHandler.complete();
+    }
+    
+    // Remove held-open state
+    wrap.classList.remove('held-open');
+    
+    // Then perform action and animate
+    performAction(actionName);
+    afterExecute(actionName.includes('complete') ? 'right' : 'left');
+  }
+  
+  // ADD a new function to handle action button clicks specifically:
+  function handleActionClick(actionName) {
+    console.log(`Action clicked: ${actionName}`);
+    
+    // Remove held-open state immediately
+    wrap.classList.remove('held-open');
+    
+    // Perform the action
     performAction(actionName);
     
-    // Then handle the animation and cleanup
-    afterExecute(actionName.includes('complete') ? 'right' : 'left');
-    
-    // Don't call cleanup() here - let afterExecute handle it
+    // Close the drawer with animation
+    if (actionName !== 'edit' && actionName !== 'edit-title') {
+      afterExecute(actionName.includes('complete') ? 'right' : 'left');
+    } else {
+      // For edit actions, just close normally
+      closeDrawer();
+    }
   }
 
+  // UPDATE the cleanupSwipeState function to handle held-open state:
+  function cleanupSwipeState() {
+    // Clear timers
+    clearHoldTimer();
+  
+    // Clean up DOM
+    document.body.classList.remove('lock-scroll');
+    wrap.classList.remove('swiping', 'held', 'held-open'); // Added 'held-open'
+    wrap.style.removeProperty('--hold-feedback');
+    
+    // Unlock scroll
+    if (unlockScroll) {
+      unlockScroll();
+      unlockScroll = null;
+    }
+    
+    // Reset state variables
+    tracking = false;
+    captured = false;
+    isHolding = false;
+    velocityTracker = [];
+    
+    // Reset styles
+    row.style.transform = '';
+    row.style.transition = '';
+    row.style.opacity = '';
+    updateVisuals(0);
+    openX = 0; // Reset openX on cleanup
+  }
+  
+  // UPDATE the action button event listener to use the new handler:
+  // REPLACE the existing actions.addEventListener with:
+  actions.addEventListener('click', async (e) => {
+    const button = e.target.closest('.action');
+    if (!button) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const actionName = button.dataset.act;
+    console.log(`Action button clicked: ${actionName}`);
+    
+    // Use the specialized handler for action clicks
+    handleActionClick(actionName);
+  });
+
   function animateTo(targetX) {
+    // Don't animate if we're trying to hold open
+    if (wrap.classList.contains('held-open') && targetX !== 0) {
+      setTransform(targetX);
+      return;
+    }
+    
     const duration = prefersReducedMotion() ? TIMING.REDUCED_MOTION_DURATION : SWIPE.SNAP_MS;
     row.style.transition = `transform ${duration}ms ease`;
     setTransform(targetX);
-    row.addEventListener('transitionend', () => row.style.transition = '', { once: true });
+    
+    const cleanup = () => {
+      row.style.transition = '';
+      // Don't reset transform if we're held open
+      if (!wrap.classList.contains('held-open')) {
+        setTransform(targetX);
+      }
+    };
+    
+    row.addEventListener('transitionend', cleanup, { once: true });
+    // Fallback cleanup
+    setTimeout(cleanup, duration + 50);
   }
 
   function afterExecute(direction) {
     const duration = prefersReducedMotion() ? TIMING.REDUCED_MOTION_DURATION : SWIPE.EXEC_MS;
-    // Fix: Use correct reveal distance function
     const distance = direction === 'right' ? getRightRevealDistance() * 1.2 : -getLeftRevealDistance() * 1.2;
     
     row.style.transition = `transform ${duration}ms ease, opacity ${duration}ms ease`;
     setTransform(distance);
     row.style.opacity = 0;
     
-    // Use requestAnimationFrame for better timing
     setTimeout(() => {
-      // Force cleanup before reset to avoid race conditions
-      cleanup();
-      
       // Reset everything
       openX = 0;
       setTransform(0);
@@ -401,7 +454,7 @@ function reset() {
     }, duration + 10);
   }
 
-  // Action handler - much cleaner with TaskOperations
+  // Action handler
   async function performAction(actionName) {
     try {
       if (type === 'subtask') {
@@ -416,11 +469,9 @@ function reset() {
             await TaskOperations.subtask.toggle(mainId, subId);
             break;
           case 'edit':
-            // For edit actions, clean up immediately and don't animate
-            cleanup();
-            reset();
+            // For edit actions, clean up immediately
             startEditMode(row);
-            return; // Don't continue with animation
+            return;
         }
       } else if (type === 'task') {
         const taskId = wrap.closest('.task-card').dataset.id;
@@ -430,11 +481,9 @@ function reset() {
             await TaskOperations.task.toggleCompletion(taskId);
             break;
           case 'edit-title':
-            // For edit actions, clean up immediately and don't animate
-            cleanup();
-            reset();
+            // For edit actions, clean up immediately
             startEditTaskTitle(row);
-            return; // Don't continue with animation
+            return;
           case 'delete-task':
             await TaskOperations.task.delete(taskId);
             break;
@@ -442,19 +491,20 @@ function reset() {
       }
     } catch (error) {
       console.error('Swipe action failed:', error);
-      // On error, make sure we clean up properly
-      cleanup();
-      reset();
     }
   }
   
+  // UPDATE the closeDrawer function to handle held-open state:
   function closeDrawer() {
     if (openX !== 0) {
       animateTo(0);
       openX = 0;
       updateVisuals(0);
-      wrap.classList.remove('swiping', 'held');
+      wrap.classList.remove('swiping', 'held', 'held-open');
       isHolding = false;
+      
+      // No need to complete gesture here since it's already completed in holdOpen
+      console.log('Drawer closed');
     }
   }
 
@@ -462,18 +512,16 @@ function reset() {
   row.addEventListener('pointerdown', onDown, { passive: true });
   row.addEventListener('click', closeDrawer);
   
-  actions.addEventListener('click', async (e) => {
-    const button = e.target.closest('.action');
-    if (!button) return;
-    
-    await performAction(button.dataset.act);
-    
-    if (button.dataset.act !== 'edit' && button.dataset.act !== 'edit-title') {
+  document.addEventListener('pointerdown', (e) => {
+    // Check if this specific drawer is held open and click is outside
+    if (wrap.classList.contains('held-open') && !wrap.contains(e.target)) {
+      console.log('Clicked outside held-open drawer, closing');
+      closeDrawer();
+    }
+    // Also handle the original case for any open drawer
+    else if (!wrap.contains(e.target)) {
       closeDrawer();
     }
   });
   
-  document.addEventListener('pointerdown', (e) => {
-    if (!wrap.contains(e.target)) closeDrawer();
-  });
 }
