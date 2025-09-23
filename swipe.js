@@ -289,8 +289,13 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     const rightThreshold = getRightRevealDistance() * 0.6;
     
     if (distance >= leftThreshold || distance >= rightThreshold) {
-      // Hold open - complete the gesture but keep drawer open
+      // Set held-open state FIRST, then complete gesture
       const targetX = dx > 0 ? getLeftRevealDistance() : -getRightRevealDistance();
+      
+      // Pre-set the held-open class to prevent cleanup from resetting
+      wrap.classList.add('held-open');
+      openX = targetX;
+      
       holdOpen(targetX);
       return;
     }
@@ -300,31 +305,6 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     openX = 0;
     updateVisuals(0);
     swipeHandler.complete();
-  }
-  
-  function holdOpen(targetX) {
-    openX = targetX;
-    
-    // Set the transform immediately and mark as held-open
-    setTransform(targetX);
-    updateVisuals(targetX);
-    wrap.classList.add('held-open');
-    wrap.style.removeProperty('--hold-feedback');
-    
-    // Use a smooth animation to the final position
-    row.style.transition = `transform ${TIMING.NORMAL}ms ease`;
-    
-    // Ensure the position sticks after animation
-    setTimeout(() => {
-      row.style.transition = '';
-      setTransform(targetX);
-      console.log(`Drawer visually held at ${targetX}px, openX=${openX}`);
-    }, TIMING.NORMAL + 10);
-    
-    // Complete the gesture to prevent timeout
-    swipeHandler.complete();
-    
-    console.log(`Drawer held open at ${targetX}px - gesture completed`);
   }
 
   // UPDATE executeAction to not try to complete an already completed gesture:
@@ -352,6 +332,22 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     // Remove held-open state immediately
     wrap.classList.remove('held-open');
     
+    // Reset action container styles
+    actions.style.zIndex = '';
+    actions.style.pointerEvents = '';
+    
+    // Reset zone pointer events
+    leftZone.style.pointerEvents = '';
+    rightZone.style.pointerEvents = '';
+    
+    // Reset button styles
+    const actionButtons = actions.querySelectorAll('.action');
+    actionButtons.forEach(button => {
+      button.style.pointerEvents = '';
+      button.style.cursor = '';
+      button.style.zIndex = '';
+    });
+    
     // Perform the action
     performAction(actionName);
     
@@ -359,19 +355,22 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     if (actionName !== 'edit' && actionName !== 'edit-title') {
       afterExecute(actionName.includes('complete') ? 'right' : 'left');
     } else {
-      // For edit actions, just close normally
       closeDrawer();
     }
   }
 
   // UPDATE the cleanupSwipeState function to handle held-open state:
   function cleanupSwipeState() {
+    console.log(`🔍 cleanupSwipeState called. Held-open: ${wrap.classList.contains('held-open')}, openX before: ${openX}`);
+    
     // Clear timers
     clearHoldTimer();
   
-    // Clean up DOM
+    // Clean up DOM - but preserve held-open state
     document.body.classList.remove('lock-scroll');
-    wrap.classList.remove('swiping', 'held', 'held-open'); // Added 'held-open'
+    
+    // Only remove swiping/held classes, keep held-open
+    wrap.classList.remove('swiping', 'held');
     wrap.style.removeProperty('--hold-feedback');
     
     // Unlock scroll
@@ -386,12 +385,21 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     isHolding = false;
     velocityTracker = [];
     
-    // Reset styles
-    row.style.transform = '';
-    row.style.transition = '';
-    row.style.opacity = '';
-    updateVisuals(0);
-    openX = 0; // Reset openX on cleanup
+    // CRITICAL: Only reset visual state if NOT held open
+    if (!wrap.classList.contains('held-open')) {
+      console.log('🔍 Not held open, resetting visuals and openX');
+      row.style.transform = '';
+      row.style.transition = '';
+      row.style.opacity = '';
+      updateVisuals(0);
+      openX = 0;
+    } else {
+      console.log('🔍 Held open, preserving openX and transform');
+      // Keep the current transform and openX
+      // Don't reset anything visual
+    }
+    
+    console.log(`🔍 cleanupSwipeState complete. openX after: ${openX}`);
   }
   
   // UPDATE the action button event listener to use the new handler:
@@ -433,7 +441,52 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     // Fallback cleanup
     setTimeout(cleanup, duration + 50);
   }
-
+  
+function holdOpen(targetX) {
+    console.log(`🔒 Holding open at: ${targetX}`);
+    
+    // Set the target position
+    openX = targetX;
+    
+    // Animate to the target position
+    animateTo(targetX);
+    
+    // Update visual feedback
+    updateVisuals(targetX);
+    
+    // Mark as held open
+    wrap.classList.add('held-open');
+    wrap.classList.remove('swiping');
+    
+    // Enable pointer events on action zones so buttons are clickable
+   
+    actions.style.pointerEvents = 'auto';
+    
+    // Enable specific zone based on direction
+    if (targetX > 0) {
+      leftZone.style.pointerEvents = 'auto';
+      rightZone.style.pointerEvents = 'none';
+    } else {
+      leftZone.style.pointerEvents = 'none';
+      rightZone.style.pointerEvents = 'auto';
+    }
+    
+    // Make action buttons clickable
+    const actionButtons = actions.querySelectorAll('.action');
+    actionButtons.forEach(button => {
+      button.style.pointerEvents = 'auto';
+      button.style.cursor = 'pointer';
+      button.style.zIndex = '1001';
+    });
+    
+    // Complete the gesture since we're now in held-open state
+    if (swipeHandler.isActive()) {
+      swipeHandler.complete();
+    }
+    
+    console.log('✅ Drawer held open and ready for interaction');
+  }
+  
   function afterExecute(direction) {
     const duration = prefersReducedMotion() ? TIMING.REDUCED_MOTION_DURATION : SWIPE.EXEC_MS;
     const distance = direction === 'right' ? getRightRevealDistance() * 1.2 : -getLeftRevealDistance() * 1.2;
@@ -503,8 +556,23 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
       wrap.classList.remove('swiping', 'held', 'held-open');
       isHolding = false;
       
-      // No need to complete gesture here since it's already completed in holdOpen
-      console.log('Drawer closed');
+      // Reset action container styles
+      actions.style.zIndex = '';
+      actions.style.pointerEvents = '';
+      
+      // Reset zone pointer events
+      leftZone.style.pointerEvents = '';
+      rightZone.style.pointerEvents = '';
+      
+      // Reset action button styles
+      const actionButtons = actions.querySelectorAll('.action');
+      actionButtons.forEach(button => {
+        button.style.pointerEvents = '';
+        button.style.cursor = '';
+        button.style.zIndex = '';
+      });
+      
+      console.log('Drawer closed and styles reset');
     }
   }
 

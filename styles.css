@@ -792,61 +792,20 @@ button {
   transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse) * 1.05));
 }
 
-/* Add this to your styles.css for swipe held-open functionality */
-
-/* Held-open state for swipe drawers */
-.swipe-wrap.held-open,
-.card-swipe-wrap.held-open {
-  pointer-events: auto;
+/*.swipe-wrap[style*="--hold-feedback"],
+.card-swipe-wrap[style*="--hold-feedback"] {
+  background: rgba(59,130,246,.05);
+  border-radius: var(--radius);
 }
-
-.swipe-wrap.held-open .swipe-actions,
-.card-swipe-wrap.held-open .card-swipe-actions {
-  pointer-events: auto;
-  z-index: 10; /* Ensure actions are above other content */
-}
-
-.swipe-wrap.held-open .action,
-.card-swipe-wrap.held-open .action {
-  pointer-events: auto;
-  cursor: pointer;
-  transition: transform 150ms ease, box-shadow 150ms ease;
-}
-
-/* Enhanced visual feedback for held-open actions */
-.swipe-wrap.held-open .action:hover,
-.card-swipe-wrap.held-open .action:hover {
-  transform: scale(1.1);
-  box-shadow: 
-    var(--neuro-raised),
-    0 0 0 2px rgba(255, 255, 255, 0.5);
-}
-
-.swipe-wrap.held-open .action:active,
-.card-swipe-wrap.held-open .action:active {
-  transform: scale(0.95);
-  box-shadow: var(--neuro-pressed);
-}
-
-/* Ensure the content row doesn't interfere with action clicks when held open */
-.swipe-wrap.held-open .subtask,
-.card-swipe-wrap.held-open .card-row {
-  pointer-events: none; /* Disable clicks on the main content when drawer is open */
-}
-
-/* Visual indicator that drawer is held open */
-.swipe-wrap.held-open::after,
-.card-swipe-wrap.held-open::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.05);
-  pointer-events: none;
-  border-radius: var(--radius-sm);
-}
+/* Dark Mode Adjustments (Optional) */
+/* @media (prefers-color-scheme: dark) {
+  :root {
+    --neuro-bg: #2d3748;
+    --neuro-shadow-dark: #1a202c;
+    --neuro-shadow-light: #4a5568;
+  }
+} */
+/* iOS-specific overrides and improvements */
 
 /* Use the dynamic viewport height */
 @supports (-webkit-touch-callout: none) {
