@@ -56,8 +56,8 @@
   
   /* Shadows */
   --shadow: 0 4px 10px rgba(0,0,0,.08);
-  --shadow-strong: 0 10px 24px rgba(0,0,0,.14);
-  --focus: 0 0 0 2px #00000010, 0 0 0 4px #74c0fc80;
+  --shadow-strong: 0 10px 24px rgba(0, 0, 0, 0.481);
+  --focus: 0 0 0 2px #00000010, 0 0 0 4px var(--muted);
   
   /* Timing */
   --timing-fast: 140ms;
@@ -218,28 +218,30 @@ button {
   gap: var(--space-md); 
   height: var(--topbar-h); 
   padding: max(var(--space-sm), env(safe-area-inset-top)) var(--space-md) var(--space-sm); 
-  background: rgba(255,255,255,.92); 
+  background: rgba(255, 255, 255, 1); 
   backdrop-filter: saturate(180%) blur(10px); 
-  border-bottom: 1px solid var(--border); 
+  border-bottom: 1px solid var(--muted); 
 }
 
 /* ===== TASK CARDS ===== */
 .task-card { 
   background: var(--neuro-bg);
-  border: solid 1px var(--muted);
+  border: 2px solid #000; /* bold outline */
   border-radius: var(--radius); 
-  box-shadow: var(--neuro-shadow-dark);
+  /* hard shadow for cell-shaded look */
+  box-shadow: 5px 6px 0px rgba(51, 51, 51, 0.801);
   overflow: hidden; 
   transition: transform var(--timing-fast) var(--easing), 
               box-shadow var(--timing-fast) var(--easing); 
   will-change: transform; 
+  /* optional: slightly thicker text for comic feel */
+  font-weight: 600;
 }
 
 .task-card.armed { 
   transform: translateY(-2px);
-  box-shadow: 
-    8px 8px 16px var(--neuro-shadow-dark),
-    -8px -8px 16px var(--neuro-shadow-light);
+  /* hard shadow for cell-shaded look */
+  box-shadow: 6px 8px 2px rgba(51, 51, 51, 0.698);
 }
 
 .task-card.all-completed .task-title {
@@ -284,7 +286,7 @@ button {
   padding: var(--space-sm) var(--space-lg) var(--space-sm); 
   background: var(--neuro-bg);
   box-shadow: var(--neuro-subtle);
-  border-top: none;
+  border-top: 1px solid var(--muted);
   border-radius: 0 0 var(--radius-sm) var(--radius-sm); 
 }
 
@@ -293,11 +295,11 @@ button {
   gap: var(--space-md); 
   align-items: center;
   background: var(--card); 
-  border: none;
+  border: 1px solid var(--muted);
   border-radius: var(--radius-sm);
   min-height: var(--subtask-min-height); 
   padding: var(--space-sm) var(--space-md);
-  box-shadow: var(--neuro-subtle);
+  box-shadow: var(--shadow);
   touch-action: pan-y;
   transition: transform var(--timing-fast) var(--easing), 
               box-shadow var(--timing-fast) var(--easing), 
@@ -308,9 +310,7 @@ button {
 
 .subtask.armed { 
   transform: translateY(-1px);
-  box-shadow: 
-    4px 4px 8px var(--neuro-shadow-dark),
-    -4px -4px 8px var(--neuro-shadow-light);
+  box-shadow: 2px 4px 2px rgba(51, 51, 51, 0.701);
 }
 
 /* ===== FORM ELEMENTS ===== */
@@ -322,7 +322,7 @@ button {
   z-index: var(--z-dropdown);
   background: rgba(255,255,255,.92); 
   backdrop-filter: saturate(180%) blur(10px);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--muted);
   padding: var(--space-md) var(--space-lg) calc(var(--space-md) + env(safe-area-inset-bottom));
   display: flex; 
   justify-content: center;
@@ -342,10 +342,10 @@ button {
   min-height: var(--size-xs);
   background: var(--neuro-bg);
   border-radius: var(--radius-full);
-  border: none;
+  border: solid  1px var(--muted);
   padding: var(--space-sm) var(--space-md); 
   font-size: 15px;
-  box-shadow: var(--neuro-pressed);
+  box-shadow: none);
   transition: box-shadow var(--timing-fast) ease;
 }
 
@@ -354,8 +354,8 @@ button {
   outline: none;
   box-shadow: 
     inset 2px 2px 4px var(--neuro-shadow-dark),
-    inset -2px -2px 4px var(--neuro-shadow-light),
-    0 0 0 2px rgba(59, 130, 246, 0.3);
+    /*inset -2px -2px 4px var(--neuro-shadow-light),*/
+    0 0 0 2px rgba(67, 67, 67, 1);
 }
 
 /* Inline add-subtask form */
@@ -369,10 +369,11 @@ button {
 .add-btn,
 .menu-btn,
 .add-sub-btn {
-  background: var(--neuro-bg);
+  background: var(--muted);
   border: none;
   border-radius: var(--radius-full);
-  box-shadow: var(--neuro-subtle);
+  color: white;
+  box-shadow: none;
   transition: box-shadow var(--timing-fast) ease, transform var(--timing-fast) ease;
 }
 
@@ -391,7 +392,7 @@ button {
 .menu-btn:active,
 .add-sub-btn:active {
   transform: none;
-  box-shadow: var(--neuro-pressed);
+  box-shadow: none;
 }
 
 /* ===== HANDLES ===== */
@@ -431,7 +432,7 @@ button {
   text-align: center; 
   padding: var(--space-sm) var(--space-md); 
   border-radius: var(--radius-full);
-  box-shadow: var(--neuro-raised);
+  box-shadow: none;
 }
 
 /* ===== MENU ===== */
@@ -569,11 +570,12 @@ button {
   border-radius: 50%;
   flex-shrink: 0; 
   font-size: 20px;
+  color: white;
   display: inline-flex; 
   align-items: center; 
   justify-content: center;
-  background: var(--card);
-  box-shadow: var(--neuro-subtle);
+  background: var(--bg);
+  box-shadow: none;
   border: none;
   opacity: var(--reveal);
   transform: scale(calc((0.2 + var(--reveal) * 0.8) * var(--pulse)));
@@ -622,9 +624,9 @@ button {
 }
 
 .placeholder { 
-  background: var(--neuro-bg);
-  box-shadow: var(--neuro-pressed);
-  border: none;
+  background: none;
+  box-shadow: none;
+  border: 2px dashed  white;
   border-radius: var(--radius);
 }
 
@@ -635,8 +637,8 @@ button {
   width: var(--ghost-w, auto);
   height: var(--ghost-h, auto);
   border-radius: var(--radius-sm);
-  opacity: 0.98;
-  box-shadow: var(--shadow-strong);
+  opacity: 0.70;
+  box-shadow: none
   visibility: hidden;
 }
 
