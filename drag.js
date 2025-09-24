@@ -2,7 +2,7 @@
 
 import { $, $$, pt, clamp } from './core.js';
 import { gestureCoordinator, createGestureHandler } from './gestureCoordinator.js';
-import { model } from './state.js';
+import { store } from './store.js';
 import { TaskOperations } from './taskOperations.js';
 import { DRAG } from './constants.js';
 
@@ -265,18 +265,19 @@ export function bindCrossSortContainer() {
       cardDragHandler.cancel('no_movement');
       return;
     }
-
+  
     const movingId = cdrag?.dataset?.id;
-    const oldIndex = movingId ? model.findIndex(x => x.id === movingId) : -1;
+    
+    const oldIndex = movingId ? store.getState().findIndex(x => x.id === movingId) : -1;
     
     let newIndex = 0;
     for (let n = app.firstElementChild; n; n = n.nextElementSibling) {
       if (n === cph) break;
       if (n.classList?.contains('task-card')) newIndex++;
     }
-
+  
     cardDragHandler.complete();
-
+  
     if (oldIndex !== -1 && movingId) {
       try {
         await TaskOperations.task.move(oldIndex, newIndex);

@@ -1,5 +1,4 @@
 // menu.js – UPDATED with cleanup manager integration
-import { model, uid, saveModel } from './state.js';
 import { renderAll } from './rendering.js';
 import { TaskOperations } from './taskOperations.js';
 import { cleanupManager } from './cleanupManager.js'; // ← ADD THIS

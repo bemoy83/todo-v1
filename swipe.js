@@ -122,16 +122,20 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   }
 
   function lockScroll() {
-    if (unlockScroll) return;
     document.body.classList.add('lock-scroll');
-    const preventScroll = (e) => e.preventDefault();
-    window.addEventListener('touchmove', preventScroll, { passive: false });
-    window.addEventListener('wheel', preventScroll, { passive: false });
+    
+    // Store original scroll position
+    const scrollY = window.scrollY;
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollY}px`;
+    document.body.style.width = '100%';
+    
     unlockScroll = () => {
-      window.removeEventListener('touchmove', preventScroll);
-      window.removeEventListener('wheel', preventScroll);
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollY);
       document.body.classList.remove('lock-scroll');
-      unlockScroll = null;
     };
   }
 
