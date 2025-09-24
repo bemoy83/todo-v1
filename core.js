@@ -1,14 +1,14 @@
-// core.js – Updated to use new store-based rendering
+// core.js – MINIMAL UPDATE - Just add cleanup manager to existing code
 
 import { bindCrossSortContainer } from './drag.js';
 import { enableSwipe } from './swipe.js';
 import { bindMenu } from './menu.js';
 import { debounce, safeExecute } from './utils.js';
 import { model, saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticUpdate } from './state.js';
-import { setApp } from './rendering.js'; // ← Changed to new rendering
-// Remove the old import: import { renderAll } from './rendering.js';
+import { setApp } from './rendering.js'; // Keep your existing rendering for now
 import { startEditMode, startEditTaskTitle } from './editing.js';
-import { TaskOperations, focusSubtaskInput } from './taskOperations.js'; // ← Changed to new operations
+import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
+import { cleanupManager } from './cleanupManager.js'; // ← ADD THIS LINE
 
 // ===== Helpers (unchanged) =====
 export const $  = (s, root=document) => root.querySelector(s);
@@ -36,7 +36,6 @@ export const gesture = { drag: false, swipe: false };
 // ===== UPDATED BEHAVIOR WIRING =====
 let crossBound = false;
 
-// UPDATED bootBehaviors function - no manual renderAll calls needed!
 export function bootBehaviors(){
   
   if(!crossBound){ bindCrossSortContainer(); crossBound = true; }
@@ -50,7 +49,8 @@ export function bootBehaviors(){
 function bindKeyboardShortcuts() {
   if (document._keyboardBound) return;
   
-  document.addEventListener('keydown', (e) => {
+  // CHANGE THIS: Use cleanup manager instead of direct addEventListener
+  const unsubscribe = cleanupManager.addEventListener(document, 'keydown', (e) => {
     // Only handle shortcuts when not typing in an input
     if (e.target.matches('input, textarea, [contenteditable]')) return;
     
@@ -74,14 +74,21 @@ function bindKeyboardShortcuts() {
     }
   });
   
+  // REGISTER CLEANUP: This ensures the event listener is properly removed
+  cleanupManager.register(() => {
+    unsubscribe();
+    document._keyboardBound = false;
+  });
+  
   document._keyboardBound = true;
 }
 
 function bindAdders(){
-  // Main add bar - UPDATED to use new TaskOperations
+  // Main add bar - UPDATED to use cleanup manager
   const form = document.getElementById('addMainForm');
   if(form && !form._bound){
-    form.addEventListener('submit', async (e)=>{
+    // CHANGE THIS: Use cleanup manager
+    const unsubscribe = cleanupManager.addEventListener(form, 'submit', async (e)=>{
       e.preventDefault();
       const inp = document.getElementById('newTaskTitle');
       const title = (inp?.value || '').trim();
@@ -101,38 +108,56 @@ function bindAdders(){
         // Optionally show user feedback
       }
     });
+    
+    // REGISTER CLEANUP: Ensure form cleanup
+    cleanupManager.register(() => {
+      unsubscribe();
+      if (form) form._bound = false;
+    });
+    
     form._bound = true;
   }
   
-  // Delegate for per-card subtask add - UPDATED to use new TaskOperations
-  app?.addEventListener('submit', function(e){
-    const f = e.target.closest('.add-subtask-form');
-    if(!f) return;
-    e.preventDefault();
-    
-    const mainId = f.dataset.mainId;
-    const input = f.querySelector('input[name="subtask"]');
-    const text = (input.value || '').trim();
-    if(!text) return;
-    
-    // Use new TaskOperations - store will handle rendering automatically
-    TaskOperations.subtask.create(mainId, text).then(() => {
-      // Clear input after successful creation
-      input.value = '';
+  // Delegate for per-card subtask add - UPDATED to use cleanup manager
+  if (app && !app._delegateBound) {
+    // CHANGE THIS: Use cleanup manager
+    const unsubscribe = cleanupManager.addEventListener(app, 'submit', function(e){
+      const f = e.target.closest('.add-subtask-form');
+      if(!f) return;
+      e.preventDefault();
       
-      // Restore focus to the same input after re-render for rapid entry
-      setTimeout(() => {
-        const taskCard = document.querySelector('.task-card[data-id="' + mainId + '"]');
-        const subtaskInput = taskCard?.querySelector('.add-sub-input');
-        if (subtaskInput) {
-          subtaskInput.focus();
-        }
-      }, 50);
-    }).catch(error => {
-      console.error('Failed to create subtask:', error);
-      // Optionally show user feedback
+      const mainId = f.dataset.mainId;
+      const input = f.querySelector('input[name="subtask"]');
+      const text = (input.value || '').trim();
+      if(!text) return;
+      
+      // Use new TaskOperations - store will handle rendering automatically
+      TaskOperations.subtask.create(mainId, text).then(() => {
+        // Clear input after successful creation
+        input.value = '';
+        
+        // Restore focus to the same input after re-render for rapid entry
+        setTimeout(() => {
+          const taskCard = document.querySelector('.task-card[data-id="' + mainId + '"]');
+          const subtaskInput = taskCard?.querySelector('.add-sub-input');
+          if (subtaskInput) {
+            subtaskInput.focus();
+          }
+        }, 50);
+      }).catch(error => {
+        console.error('Failed to create subtask:', error);
+        // Optionally show user feedback
+      });
     });
-  }, { once: false });
+    
+    // REGISTER CLEANUP: Ensure app delegate cleanup  
+    cleanupManager.register(() => {
+      unsubscribe();
+      if (app) app._delegateBound = false;
+    });
+    
+    app._delegateBound = true;
+  }
 }
 
 // ===== Shared util for swipe/drag (unchanged) =====
@@ -146,31 +171,24 @@ export function setDomRefs(){
   setApp(app);
 }
 
-// UPDATED cleanup function
+// UPDATED cleanup function - Now uses cleanup manager
 export function cleanup() {
-  console.log('🧹 Starting cleanup...');
+  console.log('🧹 Starting cleanup with cleanup manager...');
   
-  // Remove any global event listeners
-  if (window._resizeHandler) {
-    window.removeEventListener('resize', window._resizeHandler);
-  }
+  // Use the cleanup manager for comprehensive cleanup
+  cleanupManager.cleanupAll();
   
-  // Clear any timers
-  if (window._resizeTimer) {
-    clearTimeout(window._resizeTimer);
-  }
-
+  // Reset flags
+  crossBound = false;
+  
   // Reset gesture state (keep for compatibility with old code)
   gesture.drag = false;
   gesture.swipe = false;
   
-  // Clean up new rendering subscription
+  // Clean up rendering subscription
   import('./rendering.js').then(({ cleanup: cleanupRendering }) => {
     cleanupRendering();
   });
   
   console.log('✅ Cleanup completed');
 }
-
-// NO LONGER EXPORT renderAll - the new system handles this automatically
-// export { renderAll } from './rendering.js'; // ← Remove this line

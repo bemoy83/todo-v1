@@ -1,5 +1,6 @@
-// editing.js - Edit functionality for tasks and subtasks - Updated with TaskOperations
+// editing.js - Edit functionality UPDATED with cleanup manager
 import { TaskOperations } from './taskOperations.js';
+import { cleanupManager } from './cleanupManager.js'; // ← ADD THIS
 
 export function startEditMode(subtaskElement) {
   console.log('Starting edit mode for subtask');
@@ -51,41 +52,48 @@ export function startEditMode(subtaskElement) {
     input.select();
   }, 50);
   
-  // Save function - UPDATED to use TaskOperations
+  // UPDATED: Save function with cleanup
   const saveEdit = async () => {
     const newText = input.value.trim();
     console.log('Saving edit - new text:', newText);
     
     if (newText && newText !== originalText) {
       try {
-        // Use TaskOperations instead of direct model manipulation
         await TaskOperations.subtask.update(mainId, subId, { text: newText });
         console.log('Saved and re-rendering');
       } catch (error) {
         console.error('Failed to update subtask:', error);
         // Restore original display on error
-        textEl.style.display = '';
-        input.remove();
-        // Optionally show user feedback
+        restoreOriginal();
         alert('Failed to save changes. Please try again.');
+        return;
       }
     } else {
       console.log('No changes, restoring original');
-      // Just restore the original display
-      textEl.style.display = '';
-      input.remove();
+      restoreOriginal();
     }
+    
+    // Clean up event listeners
+    cleanup();
   };
   
   // Cancel function
   const cancelEdit = () => {
     console.log('Canceling edit');
-    textEl.style.display = '';
-    input.remove();
+    restoreOriginal();
+    cleanup();
   };
   
-  // Event listeners
-  input.addEventListener('keydown', (e) => {
+  // Restore original display
+  const restoreOriginal = () => {
+    textEl.style.display = '';
+    if (input.parentNode) {
+      input.parentNode.removeChild(input);
+    }
+  };
+  
+  // UPDATED: Event listeners with cleanup manager
+  const keydownCleanup = cleanupManager.addEventListener(input, 'keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       saveEdit();
@@ -95,11 +103,30 @@ export function startEditMode(subtaskElement) {
     }
   });
   
-  input.addEventListener('blur', saveEdit);
+  const blurCleanup = cleanupManager.addEventListener(input, 'blur', saveEdit);
   
   // Prevent swipe/drag while editing
-  input.addEventListener('pointerdown', (e) => {
+  const pointerCleanup = cleanupManager.addEventListener(input, 'pointerdown', (e) => {
     e.stopPropagation();
+  });
+  
+  // Cleanup function for this edit session
+  const cleanup = () => {
+    keydownCleanup();
+    blurCleanup();
+    pointerCleanup();
+  };
+  
+  // Auto-cleanup after 30 seconds (safety net)
+  const timeoutCleanup = cleanupManager.setTimeout(() => {
+    console.log('Edit mode timeout - auto-canceling');
+    cancelEdit();
+  }, 30000);
+  
+  // Register cleanup with cleanup manager
+  cleanupManager.register(() => {
+    cleanup();
+    cleanupManager.clearTimeout(timeoutCleanup);
   });
 }
 
@@ -118,7 +145,7 @@ export function startEditTaskTitle(taskElement) {
   
   console.log('Edit task - taskId:', taskId);
   
-  // Get current title from the element (more reliable than model lookup)
+  // Get current title from the element
   const originalTitle = titleEl.textContent?.trim() || 'Untitled';
   console.log('Original title:', originalTitle);
   
@@ -153,38 +180,43 @@ export function startEditTaskTitle(taskElement) {
     input.select();
   }, 50);
   
-  // Save function - UPDATED to use TaskOperations
+  // UPDATED: Save function with cleanup
   const saveEdit = async () => {
     const newTitle = input.value.trim();
     
     if (newTitle && newTitle !== originalTitle) {
       try {
-        // Use TaskOperations instead of direct model manipulation
         await TaskOperations.task.update(taskId, { title: newTitle });
         console.log('Task title updated successfully');
       } catch (error) {
         console.error('Failed to update task title:', error);
-        // Restore original display on error
-        titleEl.style.display = '';
-        input.remove();
-        // Optionally show user feedback
+        restoreOriginal();
         alert('Failed to save changes. Please try again.');
+        return;
       }
     } else {
-      // Just restore the original display
-      titleEl.style.display = '';
-      input.remove();
+      restoreOriginal();
     }
+    
+    cleanup();
   };
   
   // Cancel function
   const cancelEdit = () => {
-    titleEl.style.display = '';
-    input.remove();
+    restoreOriginal();
+    cleanup();
   };
   
-  // Event listeners
-  input.addEventListener('keydown', (e) => {
+  // Restore original display
+  const restoreOriginal = () => {
+    titleEl.style.display = '';
+    if (input.parentNode) {
+      input.parentNode.removeChild(input);
+    }
+  };
+  
+  // UPDATED: Event listeners with cleanup manager
+  const keydownCleanup = cleanupManager.addEventListener(input, 'keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       saveEdit();
@@ -194,11 +226,30 @@ export function startEditTaskTitle(taskElement) {
     }
   });
   
-  input.addEventListener('blur', saveEdit);
+  const blurCleanup = cleanupManager.addEventListener(input, 'blur', saveEdit);
   
   // Prevent swipe/drag while editing
-  input.addEventListener('pointerdown', (e) => {
+  const pointerCleanup = cleanupManager.addEventListener(input, 'pointerdown', (e) => {
     e.stopPropagation();
+  });
+  
+  // Cleanup function for this edit session
+  const cleanup = () => {
+    keydownCleanup();
+    blurCleanup();
+    pointerCleanup();
+  };
+  
+  // Auto-cleanup after 30 seconds (safety net)
+  const timeoutCleanup = cleanupManager.setTimeout(() => {
+    console.log('Task edit mode timeout - auto-canceling');
+    cancelEdit();
+  }, 30000);
+  
+  // Register cleanup with cleanup manager
+  cleanupManager.register(() => {
+    cleanup();
+    cleanupManager.clearTimeout(timeoutCleanup);
   });
 }
 

@@ -1,7 +1,8 @@
-// menu.js – Simplified with CSS moved to stylesheet
+// menu.js – UPDATED with cleanup manager integration
 import { model, uid, saveModel } from './state.js';
 import { renderAll } from './rendering.js';
 import { TaskOperations } from './taskOperations.js';
+import { cleanupManager } from './cleanupManager.js'; // ← ADD THIS
 
 let menuBound = false;
 
@@ -10,7 +11,8 @@ export function bindMenu() {
   ensureMenuStructure();
   bindMainMenu();
   menuBound = true;
-  // No more CSS injection - it's all in styles.css now!
+  
+  console.log('📋 Menu bound with cleanup manager');
 }
 
 function bindMainMenu() {
@@ -35,16 +37,17 @@ function bindMainMenu() {
     menu.classList.contains('open') ? closeMenu() : openMenu(); 
   }
 
-  btn.addEventListener('click', (e) => { 
+  // UPDATED: Use cleanup manager for all event listeners
+  const btnCleanup = cleanupManager.addEventListener(btn, 'click', (e) => { 
     e.preventDefault(); 
     toggleMenu(); 
   });
   
-  document.addEventListener('pointerdown', (e) => { 
+  const documentCleanup = cleanupManager.addEventListener(document, 'pointerdown', (e) => { 
     if(!menu.contains(e.target) && !btn.contains(e.target)) closeMenu(); 
   });
 
-  menu.addEventListener('click', (e) => {
+  const menuCleanup = cleanupManager.addEventListener(menu, 'click', (e) => {
     const el = e.target.closest('[data-menu]'); 
     if(!el) return;
     const act = el.dataset.menu;
@@ -54,26 +57,39 @@ function bindMainMenu() {
   });
 
   // Import handler using TaskOperations
-  file?.addEventListener('change', async (e) => {
-    const f = e.target.files?.[0]; 
-    if(!f) return;
-    
-    try{
-      const text = await f.text();
-      const success = await TaskOperations.bulk.import(text);
+  let fileCleanup = null;
+  if (file) {
+    fileCleanup = cleanupManager.addEventListener(file, 'change', async (e) => {
+      const f = e.target.files?.[0]; 
+      if(!f) return;
       
-      if (!success) {
-        alert('Import failed: Invalid backup file format');
-      } else {
-        closeMenu();
-        console.log('Import successful');
+      try{
+        const text = await f.text();
+        const success = await TaskOperations.bulk.import(text);
+        
+        if (!success) {
+          alert('Import failed: Invalid backup file format');
+        } else {
+          closeMenu();
+          console.log('Import successful');
+        }
+      } catch(err){
+        alert('Import failed: ' + (err?.message || err));
+        console.error('Import error:', err);
+      } finally {
+        e.target.value = '';
       }
-    } catch(err){
-      alert('Import failed: ' + (err?.message || err));
-      console.error('Import error:', err);
-    } finally {
-      e.target.value = '';
-    }
+    });
+  }
+
+  // Register cleanup for menu system
+  cleanupManager.register(() => {
+    btnCleanup();
+    documentCleanup();
+    menuCleanup();
+    if (fileCleanup) fileCleanup();
+    menuBound = false;
+    console.log('🧹 Menu cleanup completed');
   });
 
   // Clear all data using new store system

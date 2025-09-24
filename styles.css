@@ -1,5 +1,4 @@
-/* styles.css - Enhanced with more CSS custom properties */
-
+/* ===== CSS CUSTOM PROPERTIES ===== */
 :root {
   /* Colors */
   --bg: #f1f3f5;
@@ -10,6 +9,22 @@
   --green: #2f9e44;
   --red: #e03131;
   --amber: #f59f00;
+  
+  /* Neumorphism colors */
+  --neuro-bg: #f1f3f5;
+  --neuro-shadow-dark: #d1d5db;
+  --neuro-shadow-light: #ffffff;
+  
+  /* Neumorphism shadows */
+  --neuro-raised: 
+    6px 6px 12px var(--neuro-shadow-dark),
+    -6px -6px 12px var(--neuro-shadow-light);
+  --neuro-pressed: 
+    inset 3px 3px 6px var(--neuro-shadow-dark),
+    inset -3px -3px 6px var(--neuro-shadow-light);
+  --neuro-subtle: 
+    3px 3px 6px var(--neuro-shadow-dark),
+    -3px -3px 6px var(--neuro-shadow-light);
   
   /* Spacing Scale */
   --space-xs: 4px;
@@ -55,102 +70,103 @@
   --z-dropdown: 1000;
   --z-sticky: 1100;
   --z-modal: 1200;
-
- /* Neumorphism colors - adjust based on your background */
-  --neuro-bg: #f1f3f5;           /* Main background (matches your --bg) */
-  --neuro-shadow-dark: #d1d5db;   /* Dark shadow color */
-  --neuro-shadow-light: #ffffff;  /* Light shadow/highlight color */
-  
-  /* Neumorphism shadows */
-  --neuro-raised: 
-    6px 6px 12px var(--neuro-shadow-dark),
-    -6px -6px 12px var(--neuro-shadow-light);
-  
-  --neuro-pressed: 
-    inset 3px 3px 6px var(--neuro-shadow-dark),
-    inset -3px -3px 6px var(--neuro-shadow-light);
-    
-  --neuro-subtle: 
-    3px 3px 6px var(--neuro-shadow-dark),
-    -3px -3px 6px var(--neuro-shadow-light);
 }
 
-/* Method 2: CSS content (better for consistency) */
-.action {
-  font-family: inherit; /* Use same font as body */
+/* ===== BASE STYLES ===== */
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+body {
+  margin: 0;
+  font-family: 
+    system-ui,
+    -apple-system, 
+    BlinkMacSystemFont,
+    "Segoe UI",
+    "Roboto",
+    "Oxygen",
+    "Ubuntu",
+    "Cantarell",
+    "Helvetica Neue",
+    Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  background: var(--neuro-bg);
+  color: var(--text);
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 400;
+}
+
+/* Better text rendering for inputs and buttons */
+input, 
+textarea, 
+button {
+  font-family: inherit;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Platform-specific font optimization for iOS */
+@supports (-webkit-touch-callout: none) {
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  }
+}
+
+/* ===== TYPOGRAPHY ===== */
+.topbar-title, 
+.task-title { 
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.task-title { 
+  flex: 1; 
+}
+
+.sub-text {
+  font-size: 15px;
+  line-height: 1.4;
+  flex: 1; 
+}
+
+.sub-text.done { 
+  text-decoration: line-through; 
+  color: var(--muted); 
+}
+
+/* ===== ICONS ===== */
+.action,
+.add-btn,
+.add-sub-btn,
+.menu-btn,
+.card-handle,
+.sub-handle {
+  font-family: inherit;
   font-weight: 600;
 }
 
-/* Complete/Check icons */
-.action.complete::before {
-  content: "✓";
-  /* Alternative options: */
-  /* content: "✅"; Checkmark emoji */
-  /* content: "✔️"; Heavy checkmark */
-  /* content: "✓"; Simple checkmark */
-  /* content: "☑️"; Ballot box with check */
-}
-
-/* Edit icons */
-.action.edit::before {
-  content: "✎";
-  /* Alternative options: */
-  /* content: "✎"; Pencil */
-  /* content: "📝"; Memo */
-  /* content: "✂️"; Scissors (for editing) */
-  /* content: "⚙️"; Gear (for settings/edit) */
-  /* content: "✏️"; */
-}
-
-/* Delete icons */
-.action.delete::before {
-  content: "⌫";
-  /* Alternative options: */
-  /* content: "🗑️"; Trash can */
-  /* content: "❌"; Cross mark */
-  /* content: "🚮"; Litter in bin */
-  /* content: "⌫"; Delete key */
-  /* content: "✖️"; Heavy multiplication X */
-  /* content: "×"; */
-}
-
-/* Add task button */
+/* Icon content */
+.action.complete::before { content: "✓"; }
+.action.edit::before { content: "✎"; }
+.action.delete::before { content: "⌫"; }
 .add-btn::before,
-.add-sub-btn::before {
-  content: "+";
-  /* Alternative options: */
-  /* content: "➕"; Plus emoji */
-  /* content: "✚"; Heavy plus */
-  /* content: "⊕"; Circled plus */
-  /* content: "+"; */
-}
-
-/* Menu button */
-.menu-btn::before {
-  content: "☰";
-  /* Alternative options: */
-  /* content: "⋮"; Vertical ellipsis */
-  /* content: "⚙️"; Gear */
-  /* content: "📋"; Clipboard (menu) */
-}
-
-/* Handle icons (drag handles) */
+.add-sub-btn::before { content: "+"; }
+.menu-btn::before { content: "☰"; }
 .card-handle::before,
-.sub-handle::before {
-  content: "⋮⋮";
-  /* Alternative options: */
-  /* content: "≡"; Triple bar */
-  /* content: "⠿"; Braille (dots) */
-  /* content: "⋯"; Horizontal ellipsis */
-  /* content: "▦"; Square with fill */
-}
+.sub-handle::before { content: "⋮⋮"; }
 
-/* Badge styling for task count */
-.badge {
-  font-variant-numeric: tabular-nums; /* Better number alignment */
-}
-
-/* Icon sizing and alignment */
+/* Icon sizing and effects */
 .action::before,
 .add-btn::before,
 .add-sub-btn::before,
@@ -160,18 +176,10 @@
   font-variant: normal;
   text-rendering: auto;
   line-height: 1;
+  font-size: 18px;
+  font-weight: 300;
 }
 
-.action.delete::before,
-.add-btn::before,
-.action.edit::before,
-.action.complete::before,
-.menu-btn::before {
- font-size: 18px;
- font-weight: 300;
-}
-
-/* Hover effects for better UX */
 .action:hover::before {
   transform: scale(1.1);
   transition: transform 150ms ease;
@@ -185,80 +193,8 @@
     font-weight: 900;
   }
 }
-/* Basic reset and body styles */
-* {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: transparent;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-}
 
-/* Improve input text rendering */
-input, textarea {
-  font-family: inherit; /* Use same font as body */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-body {
-  margin: 0;
-  /* Improved system font stack (all built-in): */
-  font-family: 
-    system-ui,
-    -apple-system, 
-    BlinkMacSystemFont,
-    "Segoe UI",
-    "Roboto",
-    "Oxygen",
-    "Ubuntu",
-    "Cantarell",
-    "Helvetica Neue",
-    Arial,
-    sans-serif;
-  
-  /* Add these for better text rendering: */
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  
-  background: var(--neuro-bg);                   /* Must match neuro background */
-  color: var(--text);
-  
-  /* Slightly improve base typography: */
-  font-size: 16px;
-  line-height: 1.3;
-  font-weight: 400;
-}
-
-.topbar-title, 
-.task-title { 
-  font-weight: 700; /* Instead of 800, more readable */
-  font-size: 17px;  /* Slightly smaller than 18px */
-  line-height: 1.3; /* Tighter line height for titles */
-  letter-spacing: -0.01em; /* Subtle letter spacing */
-}
-
-.task-title { 
-  flex: 1; 
-}
-
-/* Platform-specific optimizations */
-/* Better text on iOS */
-@supports (-webkit-touch-callout: none) {
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  }
-}
-
-/* Better button text */
-button {
-  font-family: inherit;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-/* Layout Styles - Now using variables */
+/* ===== LAYOUT ===== */
 .app { 
   max-width: var(--app-max-width); 
   margin: 0 auto; 
@@ -283,12 +219,12 @@ button {
   border-bottom: 1px solid var(--border); 
 }
 
-/* Task Cards - Neumorphism Style */
+/* ===== TASK CARDS ===== */
 .task-card { 
   background: var(--neuro-bg);
-  border: none;                                    /* Remove border */
+  border: none;
   border-radius: var(--radius); 
-  box-shadow: var(--neuro-raised);               /* Neumorphic shadow */
+  box-shadow: var(--neuro-raised);
   overflow: hidden; 
   transition: transform var(--timing-fast) var(--easing), 
               box-shadow var(--timing-fast) var(--easing); 
@@ -296,54 +232,31 @@ button {
 }
 
 .task-card.armed { 
-  transform: translateY(-2px);                    /* Lift slightly */
+  transform: translateY(-2px);
   box-shadow: 
     8px 8px 16px var(--neuro-shadow-dark),
-    -8px -8px 16px var(--neuro-shadow-light);    /* Deeper shadows when armed */
+    -8px -8px 16px var(--neuro-shadow-light);
 }
 
-/* Optional: Animated Hover Effects *
-.task-card:hover {
-  transform: translateY(-1px);
-  box-shadow: 
-    7px 7px 14px var(--neuro-shadow-dark),
-    -7px -7px 14px var(--neuro-shadow-light);
-} */
-
-/* Subtasks - Smaller Neumorphism */
-.subtask {
-  display: flex; 
-  gap: var(--space-md); 
-  align-items: center;
-  background: var(--card); 
-  border: none;                                   /* Remove border */
-  border-radius: var(--radius-sm);
-  min-height: var(--subtask-min-height); 
-  padding: var(--space-sm) var(--space-md);
-  box-shadow: var(--neuro-subtle);               /* Subtler shadows for subtasks */
-  touch-action: pan-y;
-  transition: transform var(--timing-fast) var(--easing), 
-              box-shadow var(--timing-fast) var(--easing), 
-              opacity var(--timing-fast) var(--easing);
-  position: relative; 
-  will-change: transform;
+.task-card.all-completed .task-title {
+  text-decoration: line-through;
+  color: var(--muted);
 }
 
-.subtask.armed { 
-  transform: translateY(-1px);                    /* Slight lift */
-  box-shadow: 
-    4px 4px 8px var(--neuro-shadow-dark),
-    -4px -4px 8px var(--neuro-shadow-light);     /* Slightly deeper shadows */
+.task-card.all-completed .badge {
+  background: var(--green);
 }
 
-/* .subtask:hover {
-  transform: translateY(-0.5px);
-  box-shadow: 
-    3px 3px 6px var(--neuro-shadow-dark),
-    -3px -3px 6px var(--neuro-shadow-light);
-} */
+.task-card.saving {
+  opacity: 0.7;
+  pointer-events: none;
+}
 
-/* Task card swipe styles */
+.task-card.success {
+  animation: successPulse var(--timing-slow) var(--easing);
+}
+
+/* Card row */
 .card-row {
   display: flex; 
   gap: var(--space-md); 
@@ -359,77 +272,44 @@ button {
   z-index: 1;
 }
 
-/* Badge - Small Neumorphic Element */
-.badge {
-  font-weight: 600; /* Medium weight, not too heavy */
-  font-size: 13px;
-  letter-spacing: 0.02em; /* Slight spacing for small text */
-  color: white;
-  background: var(--red);                         /* Keep red for visibility */
-  border: none;
-  min-width: var(--space-xl); 
-  text-align: center; 
-  padding: var(--space-sm) var(--space-md); 
-  border-radius: var(--radius-full);
-  /* box-shadow: 
-    2px 2px 4px rgba(224, 49, 49, 0.3),         /* Red-tinted shadows *
-    -2px -2px 4px rgba(255, 255, 255, 0.8); */
-  box-shadow: var(--neuro-raised)
-}
-/* Handle Styles - Using consistent sizing */
-.card-handle,
-.sub-handle { 
-  flex: 0 0 auto; 
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  min-width: var(--space-xl); 
-  min-height: var(--size-md);
-  border-radius: var(--radius); 
-  border: 0px solid var(--border); 
-  background: none; 
-  color: var(--muted); 
-  font-weight: 800; 
-  cursor: grab; 
-  touch-action: none; 
-  -webkit-user-drag: none; 
-}
-
-.card-handle:active,
-.sub-handle:active { 
-  cursor: grabbing; 
-}
-
-/* Subtask Styles - Using spacing variables */
+/* ===== SUBTASKS ===== */
 .subtask-list { 
   display: flex; 
   flex-direction: column; 
   gap: var(--space-md); 
   padding: var(--space-sm) var(--space-lg) var(--space-sm); 
   background: var(--neuro-bg);
-  box-shadow: var(--neuro-subtle);              /* Inset container */
-  border-top: none;                               /* Remove dashed border */
+  box-shadow: var(--neuro-subtle);
+  border-top: none;
   border-radius: 0 0 var(--radius-sm) var(--radius-sm); 
 }
 
-.sub-text {
-  font-size: 15px; /* Slightly smaller than body */
-  line-height: 1.4;
-  flex: 1; 
-}
-
-.sub-text.done { 
-  text-decoration: line-through; 
-  color: var(--muted); 
-}
-
-/* Smooth state transitions */
-.task-card,
 .subtask {
-  transition: opacity var(--timing-normal) ease, transform var(--timing-normal) ease;
+  display: flex; 
+  gap: var(--space-md); 
+  align-items: center;
+  background: var(--card); 
+  border: none;
+  border-radius: var(--radius-sm);
+  min-height: var(--subtask-min-height); 
+  padding: var(--space-sm) var(--space-md);
+  box-shadow: var(--neuro-subtle);
+  touch-action: pan-y;
+  transition: transform var(--timing-fast) var(--easing), 
+              box-shadow var(--timing-fast) var(--easing), 
+              opacity var(--timing-fast) var(--easing);
+  position: relative; 
+  will-change: transform;
 }
 
-/* Form Styles - Using size variables */
+.subtask.armed { 
+  transform: translateY(-1px);
+  box-shadow: 
+    4px 4px 8px var(--neuro-shadow-dark),
+    -4px -4px 8px var(--neuro-shadow-light);
+}
+
+/* ===== FORM ELEMENTS ===== */
 .add-bar {
   position: fixed; 
   left: 0; 
@@ -451,17 +331,17 @@ button {
   gap: var(--space-sm); 
 }
 
-/* Input Fields - Inset Neumorphism */
+/* Input fields */
 .add-input,
 .add-sub-input {
   flex: 1;
   min-height: var(--size-xs);
   background: var(--neuro-bg);
   border-radius: var(--radius-full);
-  border: none;                                   /* Remove borders */
+  border: none;
   padding: var(--space-sm) var(--space-md); 
   font-size: 15px;
-  box-shadow: var(--neuro-pressed);              /* Inset appearance */
+  box-shadow: var(--neuro-pressed);
   transition: box-shadow var(--timing-fast) ease;
 }
 
@@ -471,17 +351,24 @@ button {
   box-shadow: 
     inset 2px 2px 4px var(--neuro-shadow-dark),
     inset -2px -2px 4px var(--neuro-shadow-light),
-    0 0 0 2px rgba(59, 130, 246, 0.3);          /* Add focus ring */
+    0 0 0 2px rgba(59, 130, 246, 0.3);
 }
 
-/* Buttons - Neumorphic Style */
+/* Inline add-subtask form */
+.add-subtask-row { 
+  display: flex; 
+  gap: var(--space-sm); 
+  align-items: center; 
+}
+
+/* ===== BUTTONS ===== */
 .add-btn,
 .menu-btn,
 .add-sub-btn {
   background: var(--neuro-bg);
-  border: none;                                   /* Remove borders */
+  border: none;
   border-radius: var(--radius-full);
-  box-shadow: var(--neuro-subtle);               /* Raised appearance */
+  box-shadow: var(--neuro-subtle);
   transition: box-shadow var(--timing-fast) ease, transform var(--timing-fast) ease;
 }
 
@@ -499,70 +386,51 @@ button {
 .add-btn:active,
 .menu-btn:active,
 .add-sub-btn:active {
-  transform: none;                                /* Remove translateY */
-  box-shadow: var(--neuro-pressed);              /* Pressed/inset effect */
-}
-
-/* Inline add-subtask form */
-.add-subtask-row { 
-  display: flex; 
-  gap: var(--space-sm); 
-  align-items: center; 
-}
-
-/* Utility Styles */
-.drag-layer { 
-  position: absolute; 
-  inset: 0; 
-  pointer-events: none; 
-  z-index: var(--radius-full); 
-}
-
-/* Option 7: Neumorphism style (trendy) */
-.placeholder { 
-  background: var(--neuro-bg);
+  transform: none;
   box-shadow: var(--neuro-pressed);
-  border: none;
-  border-radius: var(--radius);
 }
 
-/* Drag Ghost Styles */
-.drag-ghost {
-  position: absolute; 
-  top: 0;
-  transform: translate3d(0,0,0);
-  width: var(--ghost-w, auto);
-  height: var(--ghost-h, auto);
-  border-radius: var(--radius-sm);
-  opacity: 0.98;
-  box-shadow: var(--shadow-strong);
-  visibility: hidden;
-}
-
-/* Empty state */
-.empty {
+/* ===== HANDLES ===== */
+.card-handle,
+.sub-handle { 
+  flex: 0 0 auto; 
   display: flex; 
-  flex-direction: column; 
   align-items: center; 
-  gap: var(--space-sm); 
-  padding: var(--space-xxl); 
+  justify-content: center; 
+  min-width: var(--space-xl); 
+  min-height: var(--size-md);
+  border-radius: var(--radius); 
+  border: none; 
+  background: none; 
   color: var(--muted); 
-  border: 2px dashed var(--border); 
-  border-radius: var(--radius);
-  background: var(--card);
+  font-weight: 800; 
+  cursor: grab; 
+  touch-action: none; 
+  -webkit-user-drag: none; 
 }
 
-/* Loading and success states */
-.task-card.saving {
-  opacity: 0.7;
-  pointer-events: none;
+.card-handle:active,
+.sub-handle:active { 
+  cursor: grabbing; 
 }
 
-.task-card.success {
-  animation: successPulse var(--timing-slow) var(--easing);
+/* ===== BADGE ===== */
+.badge {
+  font-weight: 600;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  color: white;
+  background: var(--red);
+  border: none;
+  min-width: var(--space-xl); 
+  text-align: center; 
+  padding: var(--space-sm) var(--space-md); 
+  border-radius: var(--radius-full);
+  box-shadow: var(--neuro-raised);
 }
 
-/* Menu - Neumorphic Panel */
+/* ===== MENU ===== */
 .menu {
   position: fixed; 
   top: calc(env(safe-area-inset-top) + var(--space-md) + var(--topbar-h)); 
@@ -574,7 +442,7 @@ button {
   background: var(--neuro-bg);
   z-index: var(--z-modal);
   opacity: 0; 
-  border: none;                                   /* Remove border */
+  border: none;
   border-radius: var(--radius-lg);
   transform: translateX(-50%) translateY(-6px) scale(.98);
   pointer-events: none; 
@@ -582,39 +450,33 @@ button {
   transition: opacity var(--timing-fast) ease, transform var(--timing-fast) ease;
   box-shadow: 
     10px 10px 20px var(--neuro-shadow-dark),
-    -10px -10px 20px var(--neuro-shadow-light);  /* Strong shadows for floating panel */
-  backdrop-filter: none;                          /* Remove backdrop filter */
+    -10px -10px 20px var(--neuro-shadow-light);
 }
 
 .menu.open { 
   opacity: 1; 
-  transform: translateX(-50%) translateY(0) scale(1);  /* ← Keep translateX(-50%) here too! */
+  transform: translateX(-50%) translateY(0) scale(1);
   pointer-events: auto; 
 }
 
 .menu-item {
   align-items: center;
-  background: var(--card);                        /* Transparent background */
+  background: var(--card);
   border: none;
   border-radius: var(--radius-sm);
   padding: var(--space-md) var(--space-lg);
   transition: background var(--timing-fast) ease, 
               box-shadow var(--timing-fast) ease;
-  margin: 2px;                                    /* Small margin for hover effect */
+  margin: 2px;
   font-weight: 700; 
   font-size: var(--space-lg);
   box-shadow: var(--neuro-raised);
 }
 
-/* .menu-item:hover {
-  background: var(--neuro-bg);
-  box-shadow: var(--neuro-pressed);              /* Inset on hover *
-} */
-
 .menu-item:active {
   box-shadow: 
     inset 4px 4px 8px var(--neuro-shadow-dark),
-    inset -4px -4px 8px var(--neuro-shadow-light); /* Deeper inset on click */
+    inset -4px -4px 8px var(--neuro-shadow-light);
 }
 
 .menu-item.danger { 
@@ -623,30 +485,9 @@ button {
   border-color: #ffe3e3; 
 }
 
-@keyframes successPulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.02); }
-  100% { transform: scale(1); }
-}
-
-/* Reduced Motion Support */
-@media (prefers-reduced-motion: reduce) {
-  .task-card, 
-  .task-card.armed, 
-  .subtask, 
-  .subtask.armed,
-  .card-row { 
-	transition: none !important; 
-	transform: none !important; }
-  .swipe-actions .action,
-  .card-swipe-actions .action { 
-	transition: opacity 60ms linear; }
-}
-
-/* Add this to your styles.css - Swipe Gesture Styles */
-
-/* Swipe containers */
-.swipe-wrap, .card-swipe-wrap  {
+/* ===== SWIPE GESTURES ===== */
+.swipe-wrap, 
+.card-swipe-wrap {
   position: relative;
   border-radius: var(--radius-sm);
 }
@@ -655,22 +496,18 @@ button {
   overflow: hidden;
 }
 
-/* Swipe states */
-.swipe-wrap.swiping .subtask, .card-swipe-wrap.swiping .card-row { 
+.swipe-wrap.swiping .subtask, 
+.card-swipe-wrap.swiping .card-row { 
   touch-action: none; 
-}
-
-.swipe-wrap.swiping .subtask,
-.card-swipe-wrap.swiping .card-row {
   transition: none;
 }
 
-.lock-scroll { /*was body.lock-scroll*/
+.lock-scroll {
   overflow: hidden; 
   overscroll-behavior: none; 
 }
 
-/* Base swipe actions (shared styles) */
+/* Swipe actions */
 .swipe-actions,
 .card-swipe-actions { 
   position: absolute; 
@@ -685,8 +522,6 @@ button {
   z-index: 0;
 }
 
-
-/* Specific heights and border radius */
 .swipe-actions {
   height: var(--subtask-row-height, var(--size-lg));
   border-radius: var(--radius-sm);
@@ -698,7 +533,6 @@ button {
 }
 
 /* Action zones */
-/* Shared zone styles */
 .swipe-actions .zone,
 .card-swipe-actions .zone { 
   display: flex; 
@@ -709,26 +543,20 @@ button {
   --pulse: 1;
   min-height: inherit;
   transition: background-color var(--timing-normal) ease;
+  background: var(--neuro-bg);
 }
 
-/* Shared zone positioning */
 .swipe-actions .zone.left,
 .card-swipe-actions .zone.left { 
   justify-content: flex-start;
-  //background: rgba(22, 163, 74, calc(var(--reveal) * 1.0));
-  background: var(--neuro-bg);
-  box-shadow: var(--neuro-pressed);
 }
 
 .swipe-actions .zone.right,
 .card-swipe-actions .zone.right { 
   justify-content: flex-end;
-  //background: rgba(239, 68, 68, calc(var(--reveal) * 1.0));
-  background: var(--neuro-bg);
-  box-shadow: var(--neuro-pressed);
 }
 
-/* Action Buttons (Swipe Actions) - Neumorphic */
+/* Action buttons */
 .swipe-actions .action,
 .card-swipe-actions .action {
   pointer-events: auto; 
@@ -740,9 +568,9 @@ button {
   display: inline-flex; 
   align-items: center; 
   justify-content: center;
-  background: var(--neuro-bg);                   /* Use neuro background */
-  box-shadow: var(--neuro-subtle);               /* Raised effect */
-  border: none;                                   /* Remove border */
+  background: var(--neuro-bg);
+  box-shadow: var(--neuro-subtle);
+  border: none;
   opacity: var(--reveal);
   transform: scale(calc((0.2 + var(--reveal) * 0.8) * var(--pulse)));
   transition: transform var(--timing-fast) ease, 
@@ -752,8 +580,8 @@ button {
 
 .swipe-actions .action:active,
 .card-swipe-actions .action:active {
-  box-shadow: var(--neuro-pressed);              /* Pressed effect */
-  transform: scale(0.95);                         /* Slight shrink on press */
+  box-shadow: var(--neuro-pressed);
+  transform: scale(0.95);
 }
 
 /* Action button variants */
@@ -775,105 +603,136 @@ button {
   --fg: white; 
 }
 
-/* Completed task styling */
-.task-card.all-completed .task-title {
-  text-decoration: line-through;
-  color: var(--muted);
-}
-
-.task-card.all-completed .badge {
-  background: var(--green);
-}
-
-/* Shared hold feedback */
+/* Hold feedback */
 .swipe-wrap.held .swipe-actions .action,
 .card-swipe-wrap.held .card-swipe-actions .action {
-  //box-shadow: 0 0 0 1px white; // rgba(59,130,246,.4), 0 2px 8px rgba(0,0,0,.12);
   transform: scale(calc((0.8 + var(--reveal) * 0.3) * var(--pulse) * 1.05));
 }
 
-/*.swipe-wrap[style*="--hold-feedback"],
-.card-swipe-wrap[style*="--hold-feedback"] {
-  background: rgba(59,130,246,.05);
+/* ===== UTILITY STYLES ===== */
+.drag-layer { 
+  position: absolute; 
+  inset: 0; 
+  pointer-events: none; 
+  z-index: var(--radius-full); 
+}
+
+.placeholder { 
+  background: var(--neuro-bg);
+  box-shadow: var(--neuro-pressed);
+  border: none;
   border-radius: var(--radius);
 }
-/* Dark Mode Adjustments (Optional) */
-/* @media (prefers-color-scheme: dark) {
-  :root {
-    --neuro-bg: #2d3748;
-    --neuro-shadow-dark: #1a202c;
-    --neuro-shadow-light: #4a5568;
-  }
-} */
-/* iOS-specific overrides and improvements */
 
-/* Use the dynamic viewport height */
+.drag-ghost {
+  position: absolute; 
+  top: 0;
+  transform: translate3d(0,0,0);
+  width: var(--ghost-w, auto);
+  height: var(--ghost-h, auto);
+  border-radius: var(--radius-sm);
+  opacity: 0.98;
+  box-shadow: var(--shadow-strong);
+  visibility: hidden;
+}
+
+.empty {
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  gap: var(--space-sm); 
+  padding: var(--space-xxl); 
+  color: var(--muted); 
+  border: 2px dashed var(--border); 
+  border-radius: var(--radius);
+  background: var(--card);
+}
+
+/* ===== ANIMATIONS ===== */
+@keyframes successPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+  100% { transform: scale(1); }
+}
+
+/* ===== ACCESSIBILITY ===== */
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .task-card, 
+  .task-card.armed, 
+  .subtask, 
+  .subtask.armed,
+  .card-row { 
+    transition: none !important; 
+    transform: none !important; 
+  }
+  
+  .swipe-actions .action,
+  .card-swipe-actions .action { 
+    transition: opacity 60ms linear; 
+  }
+}
+
+/* ===== iOS OPTIMIZATIONS ===== */
 @supports (-webkit-touch-callout: none) {
   .app {
-  min-height: calc(var(--vh, 1vh) * 100);
-  padding-top: calc(var(--topbar-h, 56px) + var(--safe-top, 0px));
-  padding-bottom: calc(140px + var(--safe-bottom, 0px));
+    min-height: calc(var(--vh, 1vh) * 100);
+    padding-top: calc(var(--topbar-h, 56px) + var(--safe-top, 0px));
+    padding-bottom: calc(140px + var(--safe-bottom, 0px));
   }
   
   .topbar {
-  padding-top: max(8px, var(--safe-top, env(safe-area-inset-top)));
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+    padding-top: max(8px, var(--safe-top, env(safe-area-inset-top)));
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
   }
   
   .add-bar {
-  padding-bottom: calc(16px + var(--safe-bottom, env(safe-area-inset-bottom)));
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: saturate(180%) blur(20px);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
+    padding-bottom: calc(16px + var(--safe-bottom, env(safe-area-inset-bottom)));
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
   }
   
-  /* Improve input handling on iOS */
+  /* Prevent zoom on inputs */
   input, textarea {
-  /* Prevent zoom */
-  font-size: max(16px, 1em);
-  /* Better touch targets */
-  min-height: 44px;
-  /* Smooth transitions */
-  transition: font-size 0.1s ease;
+    font-size: max(16px, 1em);
+    min-height: 44px;
+    transition: font-size 0.1s ease;
   }
   
-  /* Optimize gestures for iOS */
-  .task-card, .subtask {
   /* Hardware acceleration */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
-  /* Smooth animations */
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
+  .task-card, .subtask {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
   }
   
-  /* Handle notch devices */
+  /* Handle notch and Dynamic Island */
   .has-notch .topbar {
-  padding-top: max(20px, var(--safe-top, env(safe-area-inset-top)));
+    padding-top: max(20px, var(--safe-top, env(safe-area-inset-top)));
   }
   
-  /* Handle Dynamic Island devices */
   .has-dynamic-island .topbar {
-  padding-top: max(24px, var(--safe-top, env(safe-area-inset-top)));
+    padding-top: max(24px, var(--safe-top, env(safe-area-inset-top)));
   }
   
-  /* Standalone app (PWA) styles */
+  /* PWA styles */
   .standalone-app .topbar {
-  /* No browser chrome, so we can be more aggressive with padding */
-  padding-top: var(--safe-top, env(safe-area-inset-top));
+    padding-top: var(--safe-top, env(safe-area-inset-top));
   }
   
-  /* Improve scroll performance */
+  /* Smooth scrolling */
   .app, .subtask-list {
-  -webkit-overflow-scrolling: touch;
-  scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
   }
   
-  /* Better focus states for accessibility */
+  /* Better focus states */
   input:focus, textarea:focus, button:focus {
-  outline: 2px solid rgba(59, 130, 246, 0.6);
-  outline-offset: 2px;
+    outline: 2px solid rgba(59, 130, 246, 0.6);
+    outline-offset: 2px;
   }
 }
