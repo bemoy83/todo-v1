@@ -98,7 +98,11 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  background: var(--neuro-bg);
+
+  /* background image */
+  background: url("assets/background.png") no-repeat center center fixed;
+  background-size: cover;
+
   color: var(--text);
   font-size: 16px;
   line-height: 1.3;
@@ -222,9 +226,9 @@ button {
 /* ===== TASK CARDS ===== */
 .task-card { 
   background: var(--neuro-bg);
-  border: none;
+  border: solid 1px var(--muted);
   border-radius: var(--radius); 
-  box-shadow: var(--neuro-raised);
+  box-shadow: var(--neuro-shadow-dark);
   overflow: hidden; 
   transition: transform var(--timing-fast) var(--easing), 
               box-shadow var(--timing-fast) var(--easing); 
@@ -568,7 +572,7 @@ button {
   display: inline-flex; 
   align-items: center; 
   justify-content: center;
-  background: var(--neuro-bg);
+  background: var(--card);
   box-shadow: var(--neuro-subtle);
   border: none;
   opacity: var(--reveal);
