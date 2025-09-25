@@ -19,7 +19,7 @@ const FILES_TO_CACHE = [
   '/cleanupManager.js',
   '/constants.js',
   '/utils.js',
-  '/assets/background.png'  // ← ADD THIS LINE
+  '/assets/background.png'
 ];
 
 // Install - cache files
