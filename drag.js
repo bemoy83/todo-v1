@@ -5,6 +5,7 @@ import { gestureCoordinator, createGestureHandler } from './gestureCoordinator.j
 import { store } from './store.js';
 import { TaskOperations } from './taskOperations.js';
 import { DRAG } from './constants.js';
+import { cleanupManager } from './cleanupManager.js';
 
 const { HOLD_MS, JITTER_PX, GATE, FORCE, FOLLOW_MIN, FOLLOW_MAX, SPEED_GAIN, GAP_GAIN, SNAP_EPS } = DRAG;
 
@@ -65,8 +66,8 @@ export function bindCrossSortContainer() {
 
     gestureCoordinator.onCleanup(() => {
       cleanupDragState();
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      unsubscribeMove();
+      unsubscribeUp();
     });
 
     clearTimeout(timer);
@@ -78,8 +79,8 @@ export function bindCrossSortContainer() {
       if (navigator.vibrate) navigator.vibrate(5);
     }, HOLD_MS);
 
-    window.addEventListener('pointermove', handlePointerMove, { passive: false });
-    window.addEventListener('pointerup', handlePointerUp, { once: true });
+     const unsubscribeMove = cleanupManager.addEventListener(window, 'pointermove', handlePointerMove, { passive: false });
+     const unsubscribeUp = cleanupManager.addEventListener(window, 'pointerup', handlePointerUp);
   }
 
   function onPointerMove(e, dragHandler) {
@@ -206,8 +207,8 @@ export function bindCrossSortContainer() {
     
     gestureCoordinator.onCleanup(() => {
       cleanupCardDragState();
-      window.removeEventListener('pointermove', handleCardPointerMove);
-      window.removeEventListener('pointerup', handleCardPointerUp);
+      unsubscribeCardMove();
+      unsubscribeCardUp();
     });
     
     clearTimeout(ctimer);
@@ -219,8 +220,8 @@ export function bindCrossSortContainer() {
       if (navigator.vibrate) navigator.vibrate(5);
     }, HOLD_MS);
 
-    window.addEventListener('pointermove', handleCardPointerMove, { passive: false });
-    window.addEventListener('pointerup', handleCardPointerUp, { once: true });
+    const unsubscribeCardMove = cleanupManager.addEventListener(window, 'pointermove', handleCardPointerMove, { passive: false });
+    const unsubscribeCardUp = cleanupManager.addEventListener(window, 'pointerup', handleCardPointerUp);
   }
 
   function onCardPointerMove(e, cardDragHandler) {
@@ -314,8 +315,14 @@ export function bindCrossSortContainer() {
   }
 
   // ===== Event binding =====
-  app.addEventListener('pointerdown', onPointerDown, { passive: false });
-  app.addEventListener('pointerdown', onCardPointerDown, { passive: false });
+  // Event binding
+  const unsubscribeAppSubtask = cleanupManager.addEventListener(app, 'pointerdown', onPointerDown, { passive: false });
+  const unsubscribeAppCard = cleanupManager.addEventListener(app, 'pointerdown', onCardPointerDown, { passive: false });
+  
+  cleanupManager.register(() => {
+    unsubscribeAppSubtask();
+    unsubscribeAppCard();
+  });
 
   // ===== Keep all your existing helper functions below =====
   // (startDrag, startCardDrag, step, cardStep, insertIntoListByGate, etc.)

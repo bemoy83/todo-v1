@@ -8,6 +8,7 @@ import { setApp } from './rendering.js'; // Keep your existing rendering for now
 import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations, focusSubtaskInput } from './taskOperations.js';
 import { cleanupManager } from './cleanupManager.js'; // ← ADD THIS LINE
+import { saveModel, uid, syncTaskCompletion, isTaskCompleted, optimisticUpdate } from './state.js';
 
 // ===== Helpers (unchanged) =====
 export const $  = (s, root=document) => root.querySelector(s);

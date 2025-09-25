@@ -5,6 +5,7 @@ import { startEditMode, startEditTaskTitle } from './editing.js';
 import { TaskOperations } from './taskOperations.js';
 import { SWIPE, FEEDBACK, TIMING } from './constants.js';
 import { throttle } from './utils.js';
+import { cleanupManager } from './cleanupManager.js';
 
 export function enableSwipe() {
   if (!FLAGS.swipeGestures) return;
@@ -29,9 +30,15 @@ export function enableSwipe() {
   // Global click prevention
   const app = document.getElementById('app') || document;
   if (!app._swipeClickBound) {
-    app.addEventListener('click', (e) => {
+    const unsubscribe = cleanupManager.addEventListener(app, 'click', (e) => {
       if (e.target.closest('.action')) e.stopPropagation();
     });
+    
+    cleanupManager.register(() => {
+      unsubscribe();
+      app._swipeClickBound = false;
+    });
+    
     app._swipeClickBound = true;
   }
 }
@@ -51,7 +58,8 @@ function attachSubtaskSwipe(wrap) {
   };
   
   alignActions();
-  window.addEventListener('resize', alignActions);
+  const resizeUnsubscribe = cleanupManager.addEventListener(window, 'resize', alignActions);
+  cleanupManager.register(resizeUnsubscribe);
 
   attachSwipeToElement(wrap, row, actions, leftZone, rightZone, 'subtask');
 }
@@ -71,7 +79,8 @@ function attachTaskSwipe(wrap) {
   };
   
   alignActions();
-  window.addEventListener('resize', alignActions);
+  const resizeUnsubscribe = cleanupManager.addEventListener(window, 'resize', alignActions);
+  cleanupManager.register(resizeUnsubscribe);
 
   attachSwipeToElement(wrap, row, actions, leftZone, rightZone, 'task');
 }
@@ -214,13 +223,13 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     // Register cleanup with coordinator
     gestureCoordinator.onCleanup(() => {
       cleanupSwipeState();
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerUp);
+      unsubscribeMove();
+      unsubscribeUp();
     });
     
     try { row.setPointerCapture?.(e.pointerId); } catch {}
-    window.addEventListener('pointermove', handlePointerMove, { passive: false });
-    window.addEventListener('pointerup', handlePointerUp, { once: true });
+    const unsubscribeMove = cleanupManager.addEventListener(window, 'pointermove', handlePointerMove, { passive: false });
+    const unsubscribeUp = cleanupManager.addEventListener(window, 'pointerup', handlePointerUp);
   }
 
   function onMove(e) {
@@ -408,7 +417,7 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
   
   // UPDATE the action button event listener to use the new handler:
   // REPLACE the existing actions.addEventListener with:
-  actions.addEventListener('click', async (e) => {
+  const unsubscribeActions = cleanupManager.addEventListener(actions, 'click', async (e) => {
     const button = e.target.closest('.action');
     if (!button) return;
     
@@ -421,6 +430,8 @@ function attachSwipeToElement(wrap, row, actions, leftZone, rightZone, type) {
     // Use the specialized handler for action clicks
     handleActionClick(actionName);
   });
+  
+  cleanupManager.register(unsubscribeActions);
 
   function animateTo(targetX) {
     // Don't animate if we're trying to hold open
@@ -581,10 +592,15 @@ function holdOpen(targetX) {
   }
 
   // Event bindings
-  row.addEventListener('pointerdown', onDown, { passive: true });
-  row.addEventListener('click', closeDrawer);
+  const unsubscribePointerDown = cleanupManager.addEventListener(row, 'pointerdown', onDown, { passive: true });
+  const unsubscribeRowClick = cleanupManager.addEventListener(row, 'click', closeDrawer);
   
-  document.addEventListener('pointerdown', (e) => {
+  cleanupManager.register(() => {
+    unsubscribePointerDown();
+    unsubscribeRowClick();
+  });
+  
+  const unsubscribeDocument = cleanupManager.addEventListener(document, 'pointerdown', (e) => {
     // Check if this specific drawer is held open and click is outside
     if (wrap.classList.contains('held-open') && !wrap.contains(e.target)) {
       console.log('Clicked outside held-open drawer, closing');
@@ -595,5 +611,7 @@ function holdOpen(targetX) {
       closeDrawer();
     }
   });
+  
+  cleanupManager.register(unsubscribeDocument);
   
 }

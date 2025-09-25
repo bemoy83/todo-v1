@@ -222,20 +222,31 @@ button {
   backdrop-filter: saturate(180%) blur(10px); 
   border-bottom: 1px solid var(--muted); 
 }
+.task-card,
+.subtask,
+.card-row {
+  background: var(--card);
+  border-radius: var(--radius);
+  border: 2px solid #000; /* bold outline */
+
+  /* cartoon-style hard shadow */
+  //box-shadow: 6px 6px 0 #333;
+
+  font-weight: 600; /* stronger text weight for comic look */
+}
 
 /* ===== TASK CARDS ===== */
 .task-card { 
-  background: var(--neuro-bg);
-  border: 2px solid #000; /* bold outline */
-  border-radius: var(--radius); 
+  //background: var(--bg);
+  //border: 2px solid #000; /* bold outline */
+  //border-radius: var(--radius); 
   /* hard shadow for cell-shaded look */
-  box-shadow: 5px 6px 0px rgba(51, 51, 51, 0.801);
+  box-shadow: 6px 6px 0px rgba(51, 51, 51, 0.704);
   overflow: hidden; 
   transition: transform var(--timing-fast) var(--easing), 
               box-shadow var(--timing-fast) var(--easing); 
   will-change: transform; 
   /* optional: slightly thicker text for comic feel */
-  font-weight: 600;
 }
 
 .task-card.armed { 
@@ -272,9 +283,10 @@ button {
   will-change: transform;
   touch-action: pan-y;
   position: relative;
-  background: var(--card);
+  //background: var(--card);
   transition: transform var(--timing-fast) ease-out, box-shadow var(--timing-fast) ease-out;
-  border-radius: var(--radius) var(--radius) 0 0;
+  border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+  //border: 1px solid var(--muted);
   z-index: 1;
 }
 
@@ -284,9 +296,9 @@ button {
   flex-direction: column; 
   gap: var(--space-md); 
   padding: var(--space-sm) var(--space-lg) var(--space-sm); 
-  background: var(--neuro-bg);
-  box-shadow: var(--neuro-subtle);
-  border-top: 1px solid var(--muted);
+  background: var(--bg);
+  box-shadow: none;
+  //border-top: 1px solid var(--muted);
   border-radius: 0 0 var(--radius-sm) var(--radius-sm); 
 }
 
@@ -294,12 +306,12 @@ button {
   display: flex; 
   gap: var(--space-md); 
   align-items: center;
-  background: var(--card); 
-  border: 1px solid var(--muted);
-  border-radius: var(--radius-sm);
+  //background: var(--card); 
+  //border: 1px solid var(--muted);
+  //border-radius: var(--radius-sm);
   min-height: var(--subtask-min-height); 
   padding: var(--space-sm) var(--space-md);
-  box-shadow: var(--shadow);
+  //box-shadow: var(--shadow);
   touch-action: pan-y;
   transition: transform var(--timing-fast) var(--easing), 
               box-shadow var(--timing-fast) var(--easing), 
@@ -310,7 +322,7 @@ button {
 
 .subtask.armed { 
   transform: translateY(-1px);
-  box-shadow: 2px 4px 2px rgba(51, 51, 51, 0.701);
+  box-shadow: 2px 4px 2px rgba(51, 51, 51, 0.501);
 }
 
 /* ===== FORM ELEMENTS ===== */
@@ -342,7 +354,7 @@ button {
   min-height: var(--size-xs);
   background: var(--neuro-bg);
   border-radius: var(--radius-full);
-  border: solid  1px var(--muted);
+  border: 2px solid #000; /* bold outline */
   padding: var(--space-sm) var(--space-md); 
   font-size: 15px;
   box-shadow: none);
@@ -370,7 +382,7 @@ button {
 .menu-btn,
 .add-sub-btn {
   background: var(--muted);
-  border: none;
+  border: 2px solid #000; /* bold outline */
   border-radius: var(--radius-full);
   color: white;
   box-shadow: none;
@@ -427,7 +439,7 @@ button {
   letter-spacing: 0.02em;
   color: white;
   background: var(--red);
-  border: none;
+  border: 2px solid #000; /* bold outline */
   min-width: var(--space-xl); 
   text-align: center; 
   padding: var(--space-sm) var(--space-md); 
@@ -576,7 +588,7 @@ button {
   justify-content: center;
   background: var(--bg);
   box-shadow: none;
-  border: none;
+  border: 2px solid #000; /* bold outline */
   opacity: var(--reveal);
   transform: scale(calc((0.2 + var(--reveal) * 0.8) * var(--pulse)));
   transition: transform var(--timing-fast) ease, 
@@ -740,5 +752,29 @@ button {
   input:focus, textarea:focus, button:focus {
     outline: 2px solid rgba(59, 130, 246, 0.6);
     outline-offset: 2px;
+  }
+}
+
+/* iPhone PWA standalone mode */
+@media (display-mode: standalone) {
+  body {
+    overscroll-behavior-y: contain; /* Prevent pull-to-refresh */
+  }
+  
+  .topbar {
+    padding-top: max(20px, env(safe-area-inset-top));
+    background: rgba(255,255,255,.95);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+  
+  .app {
+    padding-top: calc(var(--topbar-h) + var(--space-xl) + env(safe-area-inset-top));
+    padding-bottom: calc(140px + env(safe-area-inset-bottom));
+    min-height: -webkit-fill-available;
+  }
+  
+  .add-bar {
+    padding-bottom: calc(var(--space-md) + env(safe-area-inset-bottom));
   }
 }

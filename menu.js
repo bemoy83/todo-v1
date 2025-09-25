@@ -2,6 +2,7 @@
 import { renderAll } from './rendering.js';
 import { TaskOperations } from './taskOperations.js';
 import { cleanupManager } from './cleanupManager.js'; // ← ADD THIS
+import { uid, saveModel } from './state.js';
 
 let menuBound = false;
 
