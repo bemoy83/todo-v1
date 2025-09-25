@@ -19,7 +19,7 @@ const FILES_TO_CACHE = [
   './cleanupManager.js',
   './constants.js',
   './utils.js',
-  './assets/background.png'
+  '/todo-v1/assets/background.png'
 ];
 
 // Install - cache files
