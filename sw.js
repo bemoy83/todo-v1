@@ -1,25 +1,25 @@
 // sw.js - Simple iPhone PWA Service Worker
 const CACHE_NAME = 'todo-app-v1';
 const FILES_TO_CACHE = [
-  './',
-  './index.html',
-  './styles.css',
-  './main.js',
-  './core.js',
-  './drag.js',
-  './swipe.js',
-  './menu.js',
-  './rendering.js',
-  './state.js',
-  './store.js',
-  './todoStore.js',
-  './taskOperations.js',
-  './editing.js',
-  './gestureCoordinator.js',
-  './cleanupManager.js',
-  './constants.js',
-  './utils.js',
-  './assets/background.png'
+  '/',
+  '/index.html',
+  '/styles.css',
+  '/main.js',
+  '/core.js',
+  '/drag.js',
+  '/swipe.js',
+  '/menu.js',
+  '/rendering.js',
+  '/state.js',
+  '/store.js',
+  '/todoStore.js',
+  '/taskOperations.js',
+  '/editing.js',
+  '/gestureCoordinator.js',
+  '/cleanupManager.js',
+  '/constants.js',
+  '/utils.js',
+  '/assets/background.png'  // ← ADD THIS LINE
 ];
 
 // Install - cache files
