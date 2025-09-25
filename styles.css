@@ -100,7 +100,7 @@ body {
   text-rendering: optimizeLegibility;
   
   /* ADD THESE LINES FOR BACKGROUND IMAGE */
-  background-image: url('./todo-v1/assets/background.PNG');
+  background-image: url('./assets/background.PNG');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
