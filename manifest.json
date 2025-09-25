@@ -1,7 +1,7 @@
 {
   "name": "Todo - Drag, Swipe & Add",
   "short_name": "Todo",
-  "start_url": "/",
+  "start_url": "./",
   "display": "standalone",
   "background_color": "#f1f3f5",
   "theme_color": "#3b82f6",
