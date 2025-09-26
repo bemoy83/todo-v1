@@ -106,16 +106,20 @@ body {
 }
 
 /* Add this new rule for fixed background */
-body::before{
+body::before {
+  content: '';
   position: fixed;
-  inset: 0;              /* replaces top/left/width/height */
+  top: 0;
+  left: 0;
   width: 100dvw;
   height: 100dvh;
-  background: url('./assets/background.PNG') center/cover no-repeat;
-  z-index: -1;
-  pointer-events: none;
+  background-image: url('./assets/background.PNG');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  z-index: -1; /* Put it behind all content */
+  pointer-events: none; /* Don't interfere with interactions */
 }
-
 
 /* Better text rendering for inputs and buttons */
 input, 
