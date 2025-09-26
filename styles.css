@@ -107,18 +107,19 @@ body {
 
 /* Add this new rule for fixed background */
 body::before {
-  content: '';
+  content:"";
   position: fixed;
-  top: 0;
-  left: 0;
-  width: 100dvw;
-  height: 100dvh;
+  inset: 0; /* replaces top/left/width/height */
   background-image: url('./assets/background.PNG');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   z-index: -1; /* Put it behind all content */
   pointer-events: none; /* Don't interfere with interactions */
+  /* Cancel iOS Safari's top-bar push */
+  transform: translateY(calc(var(--vv-top, 0px) * -1));
+  will-change: transform;
+
 }
 
 /* Better text rendering for inputs and buttons */

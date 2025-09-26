@@ -1,5 +1,5 @@
 // sw.js - Simple iPhone PWA Service Worker
-const CACHE_NAME = 'todo-app-v5';
+const CACHE_NAME = 'todo-app-v6';
 const FILES_TO_CACHE = [
   './',
   './index.html',
